@@ -7,10 +7,8 @@ const fetch   = require('node-fetch');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── GEMINI KEY — stored in Render environment variable, never in code ──
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
-// ── CORS — only allow requests from your Xcapeworld domain ──
 const ALLOWED_ORIGINS = [
   'https://www.xcapeworld.com',
   'https://xcapeworld.com',
@@ -42,8 +40,18 @@ app.post('/identify', async (req, res) => {
     return res.status(500).json({ error: 'Server misconfigured' });
   }
 
-  const prompt = `You are XcapeSnap, an expert wildlife identification system. Analyze this image.
-Respond ONLY in raw JSON (no markdown, no code blocks):
+  // ── HARDENED PROMPT — strict animal-only guardrail ──
+  const prompt = `You are XcapeSnap, a wildlife identification system for outdoor enthusiasts.
+
+STRICT RULES — read carefully before responding:
+1. You ONLY identify real animals: mammals, birds, reptiles, amphibians, fish, insects, arachnids, marine life, or any other creature in the animal kingdom.
+2. If the image contains a human, group of humans, or primarily shows a person — set noAnimalFound:true and rejectionReason:"no_animal".
+3. If the image contains no animal at all (objects, food, landscapes, vehicles, text, abstract images, etc.) — set noAnimalFound:true and rejectionReason:"no_animal".
+4. If the image is too blurry, dark, or unclear to confidently identify — set noAnimalFound:true and rejectionReason:"unclear_image".
+5. If the animal is in a drawing, cartoon, stuffed toy, or statue (not a real living creature) — set noAnimalFound:true and rejectionReason:"not_real_animal".
+6. Do NOT attempt to identify or describe anything that is not a real animal.
+
+Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
 {
   "commonName":"",
   "scientificName":"",
@@ -56,9 +64,10 @@ Respond ONLY in raw JSON (no markdown, no code blocks):
   "encounterDont":["","",""],
   "funFact":"",
   "tags":["",""],
-  "noAnimalFound":false
+  "noAnimalFound":false,
+  "rejectionReason":""
 }
-dangerLevel 1-5. If no animal visible set noAnimalFound:true.`;
+dangerLevel 1=harmless, 2=caution, 3=moderate, 4=dangerous, 5=deadly.`;
 
   try {
     const geminiRes = await fetch(
@@ -71,7 +80,7 @@ dangerLevel 1-5. If no animal visible set noAnimalFound:true.`;
             { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageData } },
             { text: prompt }
           ]}],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
         })
       }
     );
@@ -90,6 +99,20 @@ dangerLevel 1-5. If no animal visible set noAnimalFound:true.`;
     let parsed;
     try { parsed = JSON.parse(txt); }
     catch (e) { return res.status(422).json({ error: 'Could not parse response' }); }
+
+    // ── SERVER-SIDE GUARDRAIL — double-check the rejection ──
+    if (parsed.noAnimalFound) {
+      const reason = parsed.rejectionReason || 'no_animal';
+      const messages = {
+        no_animal:       'No animal found. Point at a real animal and try again.',
+        unclear_image:   'Image too unclear. Move closer or improve lighting and try again.',
+        not_real_animal: 'XcapeSnap only identifies real living animals, not drawings or toys.'
+      };
+      return res.status(422).json({
+        error: messages[reason] || messages['no_animal'],
+        rejectionReason: reason
+      });
+    }
 
     return res.json(parsed);
 
