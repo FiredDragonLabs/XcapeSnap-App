@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="XcapeSnap - Instant wildlife identification powered by AI. Identify any animal instantly with your camera.">
+  <meta name="keywords" content="wildlife identification, animal identifier, nature app, outdoor app, xcapeworld">
+  <meta name="author" content="Xcapeworld">
+  <title>XcapeSnap - Wildlife Identification App | Xcapeworld</title>
+  
+  <!-- Open Graph / Social Media -->
+  <meta property="og:title" content="XcapeSnap - Wildlife Identification App">
+  <meta property="og:description" content="Identify any animal instantly with AI-powered recognition. Get species info, danger levels, and encounter guidance.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://firedragonlabs.github.io/xcapesnap/">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦁</text></svg>">
+  
+  <!-- XcapeSnap Standalone App -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Exo+2:wght@300;400;600;700&amp;display=swap" rel="stylesheet"></link>
+<style>
+  /* ============ SCOPED TO #wildsnap-app — won't fight Blogger ============ */
+  :root {
+    --ws-yellow: #F5C518;
+    --ws-yellow-glow: #FFD700;
+    --ws-dark:  #0A0A0A;
+    --ws-dark2: #111111;
+    --ws-dark3: #1A1A1A;
+    --ws-text:  #F0F0F0;
+    --ws-dim:   #888888;
+    --d1: #4CAF50; --d2: #8BC34A; --d3: #FFC107; --d4: #FF5722; --d5: #F44336;
+  }
+
+  /* Container — fills the viewport height minus Blogger chrome */
+  #wildsnap-app {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    height: 90vh;
+    min-height: 580px;
+    max-height: 860px;
+    margin: 0 auto;
+    background: var(--ws-dark);
+    border-radius: 20px;
+    overflow: hidden;
+    font-family: 'Exo 2', sans-serif;
+    color: var(--ws-text);
+    box-shadow: 0 0 60px rgba(245,197,24,0.12), 0 4px 40px rgba(0,0,0,0.8);
+    border: 1px solid rgba(245,197,24,0.18);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ============ MOBILE FULLSCREEN ============ */
+  @media (max-width: 520px) {
+    #wildsnap-app {
+      width: 100%;
+      max-width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-height: 100vh;
+      min-height: 100dvh;
+      max-height: 100vh;
+      max-height: 100dvh;
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
+      margin: 0;
+    }
+  }
+
+  /* ============ SCREENS ============ */
+  #wildsnap-app .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+  #wildsnap-app .screen.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ============ TOP BAR ============ */
+  #wildsnap-app .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
+  }
+
+  #wildsnap-app .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--ws-yellow);
+    text-shadow: 0 0 12px rgba(245,197,24,0.5);
+  }
+  #wildsnap-app .logo span { color: var(--ws-text); }
+
+  #wildsnap-app .hamburger {
+    width: 36px; height: 36px;
+    background: rgba(245,197,24,0.1);
+    border: 1px solid rgba(245,197,24,0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  #wildsnap-app .hamburger:hover { background: rgba(245,197,24,0.2); }
+  #wildsnap-app .hamburger b {
+    display: block;
+    width: 16px; height: 2px;
+    background: var(--ws-yellow);
+    border-radius: 2px;
+  }
+
+  /* ============ CAMERA SCREEN ============ */
+  #ws-camScreen { background: #000; }
+
+  #wildsnap-app .viewfinder {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #050505;
+  }
+
+  #ws-video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Corner brackets */
+  #wildsnap-app .bracket {
+    position: absolute;
+    width: 40px; height: 40px;
+    z-index: 10;
+  }
+  #wildsnap-app .bracket::before,
+  #wildsnap-app .bracket::after {
+    content: '';
+    position: absolute;
+    background: var(--ws-yellow);
+    box-shadow: 0 0 8px var(--ws-yellow-glow), 0 0 14px rgba(245,197,24,0.35);
+    border-radius: 1px;
+  }
+  #wildsnap-app .bracket.tl { top: 16%; left: 10%; }
+  #wildsnap-app .bracket.tl::before { top:0; left:0; width:3px; height:40px; }
+  #wildsnap-app .bracket.tl::after  { top:0; left:0; width:40px; height:3px; }
+  #wildsnap-app .bracket.tr { top: 16%; right: 10%; }
+  #wildsnap-app .bracket.tr::before { top:0; right:0; width:3px; height:40px; }
+  #wildsnap-app .bracket.tr::after  { top:0; right:0; width:40px; height:3px; }
+  #wildsnap-app .bracket.bl { bottom: 24%; left: 10%; }
+  #wildsnap-app .bracket.bl::before { bottom:0; left:0; width:3px; height:40px; }
+  #wildsnap-app .bracket.bl::after  { bottom:0; left:0; width:40px; height:3px; }
+  #wildsnap-app .bracket.br { bottom: 24%; right: 10%; }
+  #wildsnap-app .bracket.br::before { bottom:0; right:0; width:3px; height:40px; }
+  #wildsnap-app .bracket.br::after  { bottom:0; right:0; width:40px; height:3px; }
+
+  #wildsnap-app .scanline {
+    position: absolute;
+    left: 10%; right: 10%;
+    height: 2px;
+    background: linear-gradient(to right, transparent, var(--ws-yellow), transparent);
+    box-shadow: 0 0 8px var(--ws-yellow-glow);
+    top: 16%;
+    z-index: 9;
+    animation: ws-scan 2.5s ease-in-out infinite;
+  }
+  @keyframes ws-scan {
+    0%   { top: 16%; opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { top: 74%; opacity: 0; }
+  }
+
+  #wildsnap-app .cam-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: rgba(245,197,24,0.7);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 300;
+    white-space: nowrap;
+    z-index: 10;
+  }
+
+  #wildsnap-app .no-cam {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--ws-dim);
+  }
+  #wildsnap-app .no-cam svg { width: 48px; height: 48px; opacity: 0.25; color: var(--ws-yellow); }
+  #wildsnap-app .no-cam p { font-size: 12px; text-align: center; max-width: 180px; line-height: 1.6; }
+
+  #wildsnap-app .flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 200;
+  }
+  #wildsnap-app .flash.go { animation: ws-flash 0.3s ease; }
+  @keyframes ws-flash { 0%{opacity:0} 20%{opacity:0.85} 100%{opacity:0} }
+
+  /* ============ BOTTOM BAR ============ */
+  #wildsnap-app .bottombar {
+    height: 100px;
+    background: linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(10,10,10,0.98) 100%);
+    border-top: 1px solid rgba(245,197,24,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 20px 14px;
+    flex-shrink: 0;
+    z-index: 50;
+  }
+
+  #wildsnap-app .btn-side {
+    width: 58px; height: 58px;
+    background: rgba(245,197,24,0.07);
+    border: 1.5px solid rgba(245,197,24,0.3);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.18s;
+    color: var(--ws-yellow);
+  }
+  #wildsnap-app .btn-side:active { background: rgba(245,197,24,0.18); transform: scale(0.94); }
+  #wildsnap-app .btn-side svg { width: 20px; height: 20px; }
+  #wildsnap-app .btn-side span { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; color: rgba(245,197,24,0.75); }
+
+  #wildsnap-app .btn-snap {
+    width: 74px; height: 74px;
+    background: var(--ws-yellow);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px rgba(245,197,24,0.2), 0 0 22px rgba(245,197,24,0.5);
+    transition: all 0.15s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  #wildsnap-app .btn-snap::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.25);
+  }
+  #wildsnap-app .btn-snap:active { transform: scale(0.91); }
+  #wildsnap-app .btn-snap svg { width: 28px; height: 28px; color: #000; }
+
+  /* hidden */
+  #ws-fileInput { display: none; }
+  #ws-canvas { display: none; }
+
+  /* ============ PROCESSING SCREEN ============ */
+  #ws-processScreen {
+    background: var(--ws-dark);
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+  }
+
+  #wildsnap-app .proc-img {
+    width: 180px; height: 180px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 2px solid rgba(245,197,24,0.3);
+    box-shadow: 0 0 40px rgba(245,197,24,0.12);
+    flex-shrink: 0;
+  }
+  #wildsnap-app .proc-img img { width:100%; height:100%; object-fit:cover; }
+
+  #wildsnap-app .spinner { width:46px; height:46px; border:3px solid rgba(245,197,24,0.15); border-top-color:var(--ws-yellow); border-radius:50%; animation:ws-spin 0.9s linear infinite; }
+  @keyframes ws-spin { to { transform: rotate(360deg); } }
+
+  #wildsnap-app .proc-label { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:3px; color:var(--ws-yellow); }
+  #wildsnap-app .proc-sub { font-size:12px; color:var(--ws-dim); text-align:center; max-width:220px; line-height:1.6; }
+
+  /* ============ RESULTS SCREEN ============ */
+  #ws-resultsScreen { background: var(--ws-dark); }
+
+  #wildsnap-app .results-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 64px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #wildsnap-app .r-thumb {
+    width: 100%;
+    height: 180px;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(245,197,24,0.2);
+    flex-shrink: 0;
+  }
+  #wildsnap-app .r-thumb img { width:100%; height:100%; object-fit:cover; }
+  #wildsnap-app .r-thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%);
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+  #wildsnap-app .r-name { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px; color:var(--ws-yellow); line-height:1; }
+  #wildsnap-app .r-sci  { font-size:11px; color:rgba(255,255,255,0.65); font-style:italic; margin-top:2px; }
+
+  #wildsnap-app .card {
+    background: var(--ws-dark3);
+    border: 1px solid rgba(245,197,24,0.1);
+    border-radius: 12px;
+    padding: 14px;
+    animation: ws-cardIn 0.35s ease both;
+    flex-shrink: 0;
+  }
+  @keyframes ws-cardIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  #wildsnap-app .card-title {
+    font-family:'Bebas Neue',sans-serif;
+    font-size:12px;
+    letter-spacing:2px;
+    color:var(--ws-yellow);
+    margin-bottom:9px;
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  #wildsnap-app .card-title::after { content:''; flex:1; height:1px; background:rgba(245,197,24,0.18); }
+  #wildsnap-app .card-body { font-size:13px; color:var(--ws-text); line-height:1.7; font-weight:300; }
+
+  /* Danger */
+  #wildsnap-app .danger-bar { display:flex; gap:5px; margin-top:9px; }
+  #wildsnap-app .dpip { flex:1; height:7px; border-radius:4px; background:rgba(255,255,255,0.08); }
+  #wildsnap-app .dpip.a1{background:var(--d1);box-shadow:0 0 5px var(--d1)}
+  #wildsnap-app .dpip.a2{background:var(--d2);box-shadow:0 0 5px var(--d2)}
+  #wildsnap-app .dpip.a3{background:var(--d3);box-shadow:0 0 5px var(--d3)}
+  #wildsnap-app .dpip.a4{background:var(--d4);box-shadow:0 0 5px var(--d4)}
+  #wildsnap-app .dpip.a5{background:var(--d5);box-shadow:0 0 5px var(--d5)}
+  #wildsnap-app .danger-lbl { display:flex; justify-content:space-between; margin-top:5px; font-size:10px; color:var(--ws-dim); }
+
+  /* Actions */
+  #wildsnap-app .action-list { display:flex; flex-direction:column; gap:7px; margin-top:3px; }
+  #wildsnap-app .action-item { display:flex; gap:9px; align-items:flex-start; }
+  #wildsnap-app .action-num { width:20px; height:20px; background:var(--ws-yellow); color:#000; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  #wildsnap-app .action-num.red { background:var(--d5); color:#fff; }
+  #wildsnap-app .action-text { font-size:12px; line-height:1.6; color:var(--ws-text); font-weight:300; }
+
+  /* Tags */
+  #wildsnap-app .tag-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:3px; }
+  #wildsnap-app .tag { background:rgba(245,197,24,0.09); border:1px solid rgba(245,197,24,0.28); color:var(--ws-yellow); font-size:10px; font-weight:600; letter-spacing:1px; padding:3px 9px; border-radius:20px; text-transform:uppercase; }
+
+  /* Results bottom bar */
+  #wildsnap-app .res-bar {
+    height: 84px;
+    background: var(--ws-dark2);
+    border-top: 1px solid rgba(245,197,24,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 16px 12px;
+    flex-shrink: 0;
+  }
+  #wildsnap-app .rbtn {
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    cursor:pointer;
+    color:var(--ws-yellow);
+    background:rgba(245,197,24,0.07);
+    border:1px solid rgba(245,197,24,0.2);
+    border-radius:12px;
+    padding:9px 16px;
+    transition:all 0.18s;
+    font-family:inherit;
+    min-width:74px;
+  }
+  #wildsnap-app .rbtn:active { background:rgba(245,197,24,0.18); transform:scale(0.94); }
+  #wildsnap-app .rbtn svg { width:20px; height:20px; }
+  #wildsnap-app .rbtn span { font-size:9px; letter-spacing:1px; font-weight:600; text-transform:uppercase; }
+
+  /* ============ SLIDE MENU ============ */
+  #ws-menuOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  #ws-menuOverlay.open { opacity:1; pointer-events: auto; }
+
+  #wildsnap-app .menu-panel {
+    position: absolute;
+    top:0; right:0;
+    width: 260px; height:100%;
+    background: var(--ws-dark2);
+    border-left: 1px solid rgba(245,197,24,0.18);
+    transform: translateX(100%);
+    transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+    display: block;
+    padding: 50px 20px 30px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+  #ws-menuOverlay.open .menu-panel { transform:translateX(0); }
+
+  #wildsnap-app .menu-logo { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:3px; color:var(--ws-yellow); margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid rgba(245,197,24,0.18); }
+  #wildsnap-app .menu-logo span { color:var(--ws-text); }
+
+  #wildsnap-app .menu-item { padding:11px 14px; border-radius:9px; cursor:pointer; font-size:13px; font-weight:600; letter-spacing:0.5px; color:var(--ws-text); transition:all 0.18s; display:flex; align-items:center; gap:10px; }
+  #wildsnap-app .menu-item:hover { background:rgba(245,197,24,0.1); color:var(--ws-yellow); }
+  #wildsnap-app .menu-item svg { width:16px; height:16px; opacity:0.6; }
+  #wildsnap-app .menu-div { height:1px; background:rgba(245,197,24,0.1); margin:6px 0; }
+
+
+  /* X close button */
+  #wildsnap-app .menu-close {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 30px; height: 30px;
+    background: rgba(245,197,24,0.12);
+    border: 1px solid rgba(245,197,24,0.45);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--ws-yellow);
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+    transition: background 0.18s;
+    z-index: 10;
+  }
+  #wildsnap-app .menu-close:active { background: rgba(245,197,24,0.28); }
+
+  /* Upgrade block */
+  #wildsnap-app .upgrade-wrap {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(245,197,24,0.15);
+    padding-bottom: 8px;
+  }
+  #wildsnap-app .upgrade-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 15px 10px;
+    background: var(--ws-yellow);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 17px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 0 18px rgba(245,197,24,0.3);
+    transition: opacity 0.2s;
+    box-sizing: border-box;
+  }
+  #wildsnap-app .upgrade-btn:active { opacity: 0.82; }
+  #wildsnap-app .upgrade-sub {
+    text-align: center;
+    font-size: 10px;
+    color: var(--ws-dim);
+    letter-spacing: 1px;
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+
+  /* ============ TOAST ============ */
+  #ws-toast {
+    position: absolute;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: rgba(245,197,24,0.95);
+    color: #000;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:1px;
+    padding:9px 20px;
+    border-radius:24px;
+    opacity:0;
+    transition:all 0.28s;
+    z-index:500;
+    white-space:nowrap;
+    pointer-events:none;
+  }
+  #ws-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ============ ERROR ============ */
+  #ws-errorOv {
+    position:absolute; inset:0;
+    background:rgba(0,0,0,0.78);
+    z-index:450;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.28s;
+    border-radius:20px;
+  }
+  #ws-errorOv.show { opacity:1; pointer-events: auto; }
+  #wildsnap-app .err-box { background:var(--ws-dark3); border:1px solid rgba(244,67,54,0.35); border-radius:18px; padding:24px; text-align:center; max-width:280px; }
+  #wildsnap-app .err-icon { font-size:36px; margin-bottom:10px; }
+  #wildsnap-app .err-title { font-family:'Bebas Neue',sans-serif; font-size:20px; color:#F44336; letter-spacing:2px; margin-bottom:7px; }
+  #wildsnap-app .err-msg { font-size:12px; color:var(--ws-dim); line-height:1.6; margin-bottom:18px; }
+  #wildsnap-app .err-close { background:var(--ws-yellow); color:#000; border:none; border-radius:9px; padding:9px 26px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; }
+
+  /* ============ HTTPS NOTICE ============ */
+  #ws-httpsNotice {
+    position:absolute; inset:0;
+    background:var(--ws-dark);
+    z-index:600;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:30px;
+    text-align:center;
+    gap:16px;
+  }
+  #wildsnap-app .https-icon { font-size:48px; }
+  #wildsnap-app .https-title { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:3px; color:var(--ws-yellow); }
+  #wildsnap-app .https-msg { font-size:13px; color:var(--ws-dim); line-height:1.7; max-width:280px; }
+  #wildsnap-app .https-btn { background:var(--ws-yellow); color:#000; border:none; border-radius:10px; padding:11px 28px; font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:2px; cursor:pointer; margin-top:6px; }
+
+  /* ============ SNAP COUNTER ============ */
+  #ws-snapCounter {
+    position: absolute;
+    top: 58px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 90;
+    background: rgba(0,0,0,0.75);
+    border: 1px solid rgba(245,197,24,0.35);
+    border-radius: 20px;
+    padding: 5px 14px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    backdrop-filter: blur(4px);
+  }
+  #ws-snapCounter .sc-pips { display: flex; gap: 4px; }
+  #ws-snapCounter .sc-pip {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(245,197,24,0.2);
+    border: 1px solid rgba(245,197,24,0.4);
+    transition: background 0.2s;
+  }
+  #ws-snapCounter .sc-pip.used { background: var(--ws-yellow); box-shadow: 0 0 5px rgba(245,197,24,0.6); }
+  #ws-snapCounter .sc-label { font-size: 10px; color: rgba(245,197,24,0.8); letter-spacing: 1px; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
+
+  #ws-proBadge {
+    position: absolute; top: 58px; left: 50%; transform: translateX(-50%);
+    z-index: 90;
+    background: rgba(245,197,24,0.15);
+    border: 1px solid rgba(245,197,24,0.5);
+    border-radius: 20px; padding: 5px 14px;
+    font-size: 10px; color: var(--ws-yellow); letter-spacing: 2px; font-weight: 700; text-transform: uppercase;
+    display: none;
+  }
+
+  /* ============ UPGRADE MODAL ============ */
+  #ws-upgradeModal {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 550;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+    border-radius: 20px;
+  }
+  #ws-upgradeModal.show { opacity: 1; pointer-events: auto; }
+  #wildsnap-app .upgrade-modal-box { background: var(--ws-dark3); border: 1px solid rgba(245,197,24,0.25); border-radius: 20px; padding: 24px 20px; width: 100%; max-width: 320px; text-align: center; }
+  #wildsnap-app .um-icon { font-size: 36px; margin-bottom: 10px; }
+  #wildsnap-app .um-title { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:3px; color:var(--ws-yellow); margin-bottom:6px; }
+  #wildsnap-app .um-sub { font-size:12px; color:var(--ws-dim); line-height:1.6; margin-bottom:6px; }
+  #wildsnap-app .um-reset { font-size:10px; color:rgba(245,197,24,0.5); letter-spacing:1px; text-transform:uppercase; margin-bottom:20px; }
+  #wildsnap-app .um-paypal-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:15px; background:var(--ws-yellow); color:#000; border:none; border-radius:12px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; text-decoration:none; box-shadow:0 0 20px rgba(245,197,24,0.4); margin-bottom:6px; box-sizing:border-box; transition:opacity 0.2s; }
+  #wildsnap-app .um-paypal-btn:active { opacity:0.82; }
+  #wildsnap-app .um-price { font-size:11px; color:var(--ws-dim); margin-bottom:20px; letter-spacing:0.5px; }
+  #wildsnap-app .um-divider { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  #wildsnap-app .um-divider::before, #wildsnap-app .um-divider::after { content:''; flex:1; height:1px; background:rgba(245,197,24,0.15); }
+  #wildsnap-app .um-divider span { font-size:10px; color:var(--ws-dim); letter-spacing:1px; text-transform:uppercase; white-space:nowrap; }
+  #wildsnap-app .um-code-input { width:100%; padding:11px 14px; background:rgba(255,255,255,0.05); border:1px solid rgba(245,197,24,0.25); border-radius:10px; color:var(--ws-text); font-family:'Exo 2',sans-serif; font-size:14px; letter-spacing:2px; text-transform:uppercase; text-align:center; box-sizing:border-box; margin-bottom:10px; outline:none; transition:border-color 0.2s; }
+  #wildsnap-app .um-code-input:focus { border-color:rgba(245,197,24,0.6); }
+  #wildsnap-app .um-code-input::placeholder { letter-spacing:1px; text-transform:none; color:var(--ws-dim); font-size:12px; }
+  #wildsnap-app .um-unlock-btn { width:100%; padding:11px; background:transparent; border:1px solid rgba(245,197,24,0.35); border-radius:10px; color:var(--ws-yellow); font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; margin-bottom:14px; }
+  #wildsnap-app .um-unlock-btn:active { background:rgba(245,197,24,0.1); }
+  #wildsnap-app .um-close-link { font-size:11px; color:var(--ws-dim); cursor:pointer; letter-spacing:0.5px; text-decoration:underline; }
+  #wildsnap-app .um-code-err { font-size:11px; color:#F44336; margin-bottom:8px; display:none; }
+</style>
+
+<!--============ APP CONTAINER ============-->
+<!--============ APP CONTAINER ============-->
+<div id="wildsnap-app">
+
+  <canvas id="ws-canvas"></canvas>
+  <input accept="image/*" id="ws-fileInput" type="file" />
+
+  <!--============ CAMERA SCREEN ============-->
+  <div class="screen active" id="ws-camScreen">
+    <div class="topbar">
+      <div class="logo">Xcape<span>Snap</span></div>
+      <div class="hamburger" onclick="wsOpenMenu()"><b></b><b></b><b></b></div>
+    </div>
+    <div id="ws-snapCounter">
+      <div class="sc-pips">
+        <div class="sc-pip" id="sc-p1"></div>
+        <div class="sc-pip" id="sc-p2"></div>
+        <div class="sc-pip" id="sc-p3"></div>
+        <div class="sc-pip" id="sc-p4"></div>
+        <div class="sc-pip" id="sc-p5"></div>
+      </div>
+      <div class="sc-label" id="sc-label">0 / 5 Free</div>
+    </div>
+    <div id="ws-proBadge">⚡ PRO — Unlimited</div>
+    <div class="viewfinder" id="ws-viewfinder">
+      <video autoplay="" id="ws-video" muted="" playsinline=""></video>
+      <div class="no-cam" id="ws-noCam" style="display: none;">
+        <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+        <p>Tap Upload to identify from a photo, or allow camera access</p>
+      </div>
+      <div class="bracket tl"></div>
+      <div class="bracket tr"></div>
+      <div class="bracket bl"></div>
+      <div class="bracket br"></div>
+      <div class="scanline"></div>
+      <div class="flash" id="ws-flash"></div>
+      <div class="cam-hint">Point at any animal • Press Snap</div>
+    </div>
+    <div class="bottombar">
+      <div class="btn-side" onclick="document.getElementById('ws-fileInput').click()">
+        <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        <span>Upload</span>
+      </div>
+      <button class="btn-snap" onclick="wsSnap()">
+        <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="4" stroke-width="2.5"></circle><path d="M20 12a8 8 0 11-16 0 8 8 0 0116 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+      </button>
+      <div class="btn-side" onclick="wsToast('Identify an animal first!')">
+        <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        <span>Save PDF</span>
+      </div>
+    </div>
+  </div>
+
+  <!--============ PROCESSING SCREEN ============-->
+  <div class="screen" id="ws-processScreen">
+    <div class="topbar">
+      <div class="logo">Xcape<span>Snap</span></div>
+    </div>
+    <div class="proc-img"><img alt="" id="ws-procImg" src="" /></div>
+    <div class="spinner"></div>
+    <div class="proc-label">Analyzing Wildlife</div>
+    <div class="proc-sub" id="ws-procStatus">Identifying species &amp; threat level...</div>
+  </div>
+
+  <!--============ RESULTS SCREEN ============-->
+  <div class="screen" id="ws-resultsScreen">
+    <div class="topbar">
+      <div class="logo">Xcape<span>Snap</span></div>
+      <div class="hamburger" onclick="wsOpenMenu()"><b></b><b></b><b></b></div>
+    </div>
+    <div class="results-scroll" id="ws-resultsInner"></div>
+    <div class="res-bar">
+      <button class="rbtn" onclick="wsGoBack()">
+        <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        <span>New Snap</span>
+      </button>
+      <button class="rbtn" onclick="wsSavePDF()">
+        <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        <span>Save PDF</span>
+      </button>
+      <button class="rbtn" onclick="wsShare()">
+        <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+        <span>Share</span>
+      </button>
+    </div>
+  </div>
+
+  <!--============ SLIDE MENU ============-->
+  <div id="ws-menuOverlay" onclick="wsCloseMenu(event)">
+    <div class="menu-panel" onclick="event.stopPropagation()">
+      <div class="menu-close" onclick="document.getElementById('ws-menuOverlay').classList.remove('open')">✕</div>
+      <div class="menu-logo">Xcape<span>Snap</span></div>
+      <div class="menu-item"><svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Xcapeworld Home</div>
+      <div class="menu-div"></div>
+      <div class="menu-item"><svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>About XcapeSnap</div>
+      <div class="menu-item"><svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Terms of Use</div>
+      <div class="menu-item"><svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Privacy Policy</div>
+      <div class="menu-item"><svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Support</div>
+      <div class="upgrade-wrap">
+        <a class="upgrade-btn" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=N6Z6V5GCNPCZ8" target="_blank">⚡ UPGRADE TO PRO</a>
+        <div class="upgrade-sub">$9.99 / month • Unlimited snaps</div>
+      </div>
+    </div>
+  </div>
+
+  <!--============ UPGRADE MODAL ============-->
+  <div id="ws-upgradeModal">
+    <div class="upgrade-modal-box">
+      <div class="um-icon"></div>
+      <div class="um-title">Upgrade to Pro</div>
+      <div class="um-sub">You've used all <strong style="color: var(--ws-yellow);">5 free snaps</strong> this month.</div>
+      <div class="um-reset" id="ws-resetDate">Resets on the 1st of next month</div>
+      <a class="um-paypal-btn" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=N6Z6V5GCNPCZ8" target="_blank">⚡ GET UNLIMITED — $9.99/mo</a>
+      <div class="um-price">After paying, return here and enter your unlock code below.</div>
+      <div class="um-divider"><span>Already paid?</span></div>
+      <div class="um-code-err" id="ws-codeErr">Invalid code. Please try again.</div>
+      <input class="um-code-input" id="ws-codeInput" maxlength="20" type="text" />
+      <button class="um-unlock-btn" onclick="wsUnlockPro()">UNLOCK PRO ACCESS</button>
+      <div class="um-close-link" onclick="wsCloseUpgradeModal()">Maybe later</div>
+    </div>
+  </div>
+
+  <!--Toast-->
+  <div id="ws-toast"></div>
+
+  <!--Error-->
+  <div id="ws-errorOv">
+    <div class="err-box">
+      <div class="err-icon">⚠️</div>
+      <div class="err-title" id="ws-errTitle">Error</div>
+      <div class="err-msg" id="ws-errMsg">Please try again.</div>
+      <button class="err-close" onclick="wsCloseError()">OK</button>
+    </div>
+  </div>
+
+  <!--HTTPS notice (shown only when on HTTP)-->
+  <div id="ws-httpsNotice" style="display: none;">
+    <div class="https-icon">🔒</div>
+    <div class="https-title">HTTPS Required</div>
+    <div class="https-msg">Camera access requires a secure connection. Please visit this page using <strong style="color: var(--ws-yellow);">https://</strong> — Blogger supports this by default. If you're on a custom domain, enable HTTPS in Blogger Settings → HTTPS → HTTPS Availability.</div>
+    <button class="https-btn" onclick="wsForceHttps()">Switch to HTTPS</button>
+  </div>
+
+</div><!--end #wildsnap-app-->
+
+<script>
+(function() {
+  'use strict';
+
+  // ── HTTPS CHECK ──
+  if (location.protocol === 'http:' && location.hostname !== 'localhost') {
+    document.getElementById('ws-httpsNotice').style.display = 'flex';
+  }
+
+  // ── CONSTANTS ──
+  const WS_FREE_LIMIT = 5;
+  const WS_UNLOCK_CODE = 'XCAPESNAP99';
+  const WS_PROXY_URL = 'https://xcapesnap-app.onrender.com/identify';
+
+  // ── STATE ──
+  let wsStream = null;
+  let wsCaptured = null;
+  let wsLastResult = null;
+
+  // ── SNAP COUNTER STORAGE ──
+  function wsGetMonthKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0');
+  }
+
+  function wsLoadState() {
+    const monthKey = wsGetMonthKey();
+    const savedMonth = localStorage.getItem('xs_month');
+    // Reset count if new month
+    if (savedMonth !== monthKey) {
+      localStorage.setItem('xs_month', monthKey);
+      localStorage.setItem('xs_count', '0');
+    }
+    return {
+      pro: localStorage.getItem('xs_pro') === 'true',
+      count: parseInt(localStorage.getItem('xs_count') || '0'),
+    };
+  }
+
+  function wsGetCount() { return parseInt(localStorage.getItem('xs_count') || '0'); }
+  function wsIsPro() { return localStorage.getItem('xs_pro') === 'true'; }
+
+  function wsIncrementCount() {
+    const c = wsGetCount() + 1;
+    localStorage.setItem('xs_count', String(c));
+    return c;
+  }
+
+  // ── UPDATE COUNTER UI ──
+  function wsUpdateCounterUI() {
+    const pro = wsIsPro();
+    const count = wsGetCount();
+    const counterEl = document.getElementById('ws-snapCounter');
+    const badgeEl = document.getElementById('ws-proBadge');
+
+    if (pro) {
+      counterEl.style.display = 'none';
+      badgeEl.style.display = 'block';
+    } else {
+      counterEl.style.display = 'flex';
+      badgeEl.style.display = 'none';
+      // Update pips
+      for (let i = 1; i <= 5; i++) {
+        const pip = document.getElementById('sc-p' + i);
+        if (pip) pip.classList.toggle('used', i <= count);
+      }
+      document.getElementById('sc-label').textContent = count + ' / 5 Free';
+    }
+
+    // Update reset date text in modal
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const opts = { month: 'long', day: 'numeric' };
+    const resetEl = document.getElementById('ws-resetDate');
+    if (resetEl) resetEl.textContent = 'Free snaps reset ' + nextMonth.toLocaleDateString('en-US', opts);
+  }
+
+  // ── HTTPS REDIRECT ──
+  window.wsForceHttps = function() {
+    location.href = location.href.replace('http://', 'https://');
+  };
+
+  // ── SCREENS ──
+  function wsShow(id) {
+    document.querySelectorAll('#wildsnap-app .screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  // ── CAMERA ──
+  async function wsStartCam() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} },
+        audio: false
+      });
+      wsStream = stream;
+      const v = document.getElementById('ws-video');
+      v.srcObject = stream;
+      v.style.display = 'block';
+      document.getElementById('ws-noCam').style.display = 'none';
+    } catch(e) {
+      document.getElementById('ws-video').style.display = 'none';
+      document.getElementById('ws-noCam').style.display = 'flex';
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        wsToast('Camera access denied. Use Upload instead.');
+      } else if (e.name === 'NotFoundError') {
+        wsToast('No camera found. Use Upload instead.');
+      } else {
+        wsToast('Camera unavailable. Use Upload instead.');
+      }
+    }
+  }
+
+  function wsStopCam() {
+    if (wsStream) { wsStream.getTracks().forEach(t => t.stop()); wsStream = null; }
+  }
+
+  // Init
+  wsLoadState();
+  wsUpdateCounterUI();
+  wsStartCam();
+
+  // ── SNAP ──
+  window.wsSnap = function() {
+    // Check limit first
+    if (!wsIsPro() && wsGetCount() >= WS_FREE_LIMIT) {
+      wsShowUpgradeModal();
+      return;
+    }
+
+    const v = document.getElementById('ws-video');
+    if (!v.srcObject || !v.videoWidth) {
+      wsStartCam();
+      return;
+    }
+    const fl = document.getElementById('ws-flash');
+    fl.classList.add('go');
+    setTimeout(() => fl.classList.remove('go'), 400);
+
+    const c = document.getElementById('ws-canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    const dataURL = c.toDataURL('image/jpeg', 0.85);
+    wsCaptured = dataURL.split(',')[1];
+    wsProcess(dataURL);
+  };
+
+  document.getElementById('ws-fileInput').addEventListener('change', function(e) {
+    // Check limit for uploads too
+    if (!wsIsPro() && wsGetCount() >= WS_FREE_LIMIT) {
+      wsShowUpgradeModal();
+      e.target.value = '';
+      return;
+    }
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => { wsCaptured = ev.target.result.split(',')[1]; wsProcess(ev.target.result); };
+    r.readAsDataURL(f);
+    e.target.value = '';
+  });
+
+  // ── PROCESS ──
+  async function wsProcess(dataURL) {
+    document.getElementById('ws-procImg').src = dataURL;
+    wsShow('ws-processScreen');
+    wsStopCam();
+
+    const statusEl = document.getElementById('ws-procStatus');
+    const msgs = ['Identifying species & threat level...','Cross-referencing wildlife data...','Analyzing behavioral traits...','Compiling encounter guidance...'];
+    let si = 0;
+    const timer = setInterval(() => { si=(si+1)%msgs.length; statusEl.textContent=msgs[si]; }, 1800);
+
+    try {
+      const result = await wsCallGemini(wsCaptured);
+      clearInterval(timer);
+      // Only increment AFTER successful identification
+      wsIncrementCount();
+      wsUpdateCounterUI();
+      wsRender(result, dataURL);
+    } catch(err) {
+      clearInterval(timer);
+      wsShow('ws-camScreen');
+      wsStartCam();
+      wsShowError('Identification Failed', err.message || 'Could not identify. Try a clearer image.');
+    }
+  }
+
+  // ── PROXY CALL — API key lives on server, never exposed in browser ──
+  async function wsCallGemini(b64) {
+    const res = await fetch(WS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageData: b64, mimeType: 'image/jpeg' })
+    });
+
+    const responseData = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      if (res.status === 429) throw new Error('API quota exceeded. Try again in a moment.');
+      // Use the server's specific rejection message if available
+      throw new Error(responseData?.error || `Server error ${res.status}`);
+    }
+
+    if (responseData.error) throw new Error(responseData.error);
+    return responseData;
+  }
+
+  // ── RENDER ──
+  function wsRender(d, imgSrc) {
+    wsLastResult = d;
+    const dColors = ['','#4CAF50','#8BC34A','#FFC107','#FF5722','#F44336'];
+    const dc = dColors[d.dangerLevel]||'#888';
+    const cont = document.getElementById('ws-resultsInner');
+
+    let html = `
+      <div class="r-thumb">
+        <img src="${imgSrc}" alt="${d.commonName}">
+        <div class="r-thumb-overlay"><div>
+          <div class="r-name">${d.commonName}</div>
+          <div class="r-sci">${d.scientificName||''}</div>
+        </div></div>
+      </div>
+      <div class="card" style="animation-delay:.05s">
+        <div class="card-title">Classification</div>
+        <div class="tag-row"><div class="tag">${d.animalType}</div>${(d.tags||[]).map(t=>`<div class="tag">${t}</div>`).join('')}</div>
+      </div>
+      <div class="card" style="animation-delay:.1s">
+        <div class="card-title">Danger Level</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${dc};letter-spacing:2px">${d.dangerLevel}/5</span>
+          <span style="font-size:12px;color:${dc};font-weight:600">${d.dangerLabel}</span>
+        </div>
+        <div class="danger-bar">${[1,2,3,4,5].map(i=>`<div class="dpip ${i<=d.dangerLevel?'a'+i:''}"></div>`).join('')}</div>
+        <div class="danger-lbl"><span>Safe</span><span>Dangerous</span></div>
+      </div>
+      <div class="card" style="animation-delay:.15s">
+        <div class="card-title">About</div>
+        <div class="card-body">${d.description}</div>
+        ${d.habitat?`<div class="card-body" style="margin-top:8px;color:var(--ws-dim);font-size:12px">&#128205; ${d.habitat}</div>`:''}
+      </div>`;
+
+    if (d.encounterDo?.length) html += `
+      <div class="card" style="animation-delay:.2s">
+        <div class="card-title">&#9989; DO — Encounter Guidance</div>
+        <div class="action-list">${d.encounterDo.map((a,i)=>`<div class="action-item"><div class="action-num">${i+1}</div><div class="action-text">${a}</div></div>`).join('')}</div>
+      </div>`;
+
+    if (d.encounterDont?.length) html += `
+      <div class="card" style="animation-delay:.25s">
+        <div class="card-title">&#128683; DO NOT</div>
+        <div class="action-list">${d.encounterDont.map((a,i)=>`<div class="action-item"><div class="action-num red">${i+1}</div><div class="action-text">${a}</div></div>`).join('')}</div>
+      </div>`;
+
+    if (d.funFact) html += `
+      <div class="card" style="animation-delay:.3s;border-color:rgba(245,197,24,.22)">
+        <div class="card-title">&#9889; Wild Fact</div>
+        <div class="card-body">${d.funFact}</div>
+      </div>`;
+
+    html += `<div style="text-align:center;padding:14px 0 6px;opacity:.35;font-size:10px;letter-spacing:2px;text-transform:uppercase">XcapeSnap &middot; Xcapeworld</div>`;
+    cont.innerHTML = html;
+    wsShow('ws-resultsScreen');
+  }
+
+  // ── BACK ──
+  window.wsGoBack = function() { wsShow('ws-camScreen'); wsStartCam(); wsUpdateCounterUI(); };
+
+  // ── UPGRADE MODAL ──
+  window.wsShowUpgradeModal = function() {
+    document.getElementById('ws-upgradeModal').classList.add('show');
+  };
+  window.wsCloseUpgradeModal = function() {
+    document.getElementById('ws-upgradeModal').classList.remove('show');
+    document.getElementById('ws-codeInput').value = '';
+    document.getElementById('ws-codeErr').style.display = 'none';
+  };
+
+  // ── PRO UNLOCK ──
+  window.wsUnlockPro = function() {
+    const input = document.getElementById('ws-codeInput').value.trim().toUpperCase();
+    const errEl = document.getElementById('ws-codeErr');
+    if (input === WS_UNLOCK_CODE) {
+      localStorage.setItem('xs_pro', 'true');
+      wsCloseUpgradeModal();
+      wsUpdateCounterUI();
+      wsToast('PRO UNLOCKED — Unlimited Snaps!');
+    } else {
+      errEl.style.display = 'block';
+      document.getElementById('ws-codeInput').value = '';
+    }
+  };
+
+  // Allow Enter key on code input
+  document.getElementById('ws-codeInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') wsUnlockPro();
+  });
+
+  // ── SAVE PDF ──
+  window.wsSavePDF = function() {
+    if (!wsLastResult) { wsToast('Identify an animal first'); return; }
+    const d = wsLastResult;
+    const dColors=['','#4CAF50','#8BC34A','#FFC107','#FF5722','#F44336'];
+    const dc = dColors[d.dangerLevel]||'#888';
+    const win = window.open('','_blank');
+    if (!win) { wsToast('Allow popups to save PDF'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><title>XcapeSnap — ${d.commonName}</title>
+    <style>body{font-family:Arial,sans-serif;background:#0A0A0A;color:#F0F0F0;padding:30px;max-width:580px;margin:0 auto}
+    h1{color:#F5C518;font-size:32px;letter-spacing:3px;margin-bottom:4px}.sci{color:#888;font-style:italic;margin-bottom:20px}
+    .card{background:#1A1A1A;border:1px solid #333;border-radius:10px;padding:16px;margin-bottom:12px}
+    .lbl{color:#F5C518;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+    .body{font-size:13px;line-height:1.7;color:#DDD}.tag{display:inline-block;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:#F5C518;font-size:10px;padding:3px 8px;border-radius:12px;margin:2px;text-transform:uppercase;letter-spacing:1px}
+    li{font-size:13px;line-height:1.8;color:#CCC}.footer{text-align:center;margin-top:28px;color:#444;font-size:11px;letter-spacing:2px}</style></head><body>
+    <h1>${d.commonName}</h1><div class="sci">${d.scientificName||''}</div>
+    <div class="card"><div class="lbl">Classification</div><div class="tag">${d.animalType}</div>${(d.tags||[]).map(t=>`<div class="tag">${t}</div>`).join('')}</div>
+    <div class="card"><div class="lbl">Danger Level</div><div style="font-size:22px;color:${dc};font-weight:bold">${d.dangerLevel}/5 — ${d.dangerLabel}</div></div>
+    <div class="card"><div class="lbl">About</div><div class="body">${d.description}</div>${d.habitat?`<div class="body" style="margin-top:8px;color:#888">📍 ${d.habitat}</div>`:''}</div>
+    ${d.encounterDo?.length?`<div class="card"><div class="lbl">✅ DO</div><ol>${d.encounterDo.map(a=>`<li>${a}</li>`).join('')}</ol></div>`:''}
+    ${d.encounterDont?.length?`<div class="card"><div class="lbl">🚫 DO NOT</div><ol>${d.encounterDont.map(a=>`<li>${a}</li>`).join('')}</ol></div>`:''}
+    ${d.funFact?`<div class="card"><div class="lbl">⚡ Wild Fact</div><div class="body">${d.funFact}</div></div>`:''}
+    <div class="footer">XcapeSnap by Xcapeworld &middot; ${new Date().toLocaleDateString()}</div>
+    <script>window.print();<\/script>
+    </body></html>`);
+    win.document.close();
+  };
+
+  // ── MENU ──
+  window.wsOpenMenu = function() {
+    document.getElementById('ws-menuOverlay').classList.add('open');
+  };
+  window.wsCloseMenu = function(e) {
+    if (e.target === document.getElementById('ws-menuOverlay')) {
+      document.getElementById('ws-menuOverlay').classList.remove('open');
+    }
+  };
+
+  // ── TOAST ──
+  window.wsToast = function(msg) {
+    const t = document.getElementById('ws-toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2400);
+  };
+
+  // ── ERROR ──
+  window.wsShowError = function(title, msg) {
+    document.getElementById('ws-errTitle').textContent = title;
+    document.getElementById('ws-errMsg').textContent = msg;
+    document.getElementById('ws-errorOv').classList.add('show');
+  };
+  window.wsCloseError = function() {
+    document.getElementById('ws-errorOv').classList.remove('show');
+  };
+
+  // ── SHARE ──
+  window.wsShare = function() {
+    if (!wsLastResult) { window.wsToast('Identify an animal first'); return; }
+    if (navigator.share) {
+      navigator.share({
+        title: 'XcapeSnap — ' + wsLastResult.commonName,
+        text: wsLastResult.commonName + ' — Danger Level ' + wsLastResult.dangerLevel + '/5. Identified by XcapeSnap on Xcapeworld.',
+        url: window.location.href
+      }).catch(function() {});
+    } else {
+      var txt = wsLastResult.commonName + ' — Danger Level ' + wsLastResult.dangerLevel + '/5. Identified by XcapeSnap. ' + window.location.href;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(txt).then(function() { window.wsToast('Result copied to clipboard!'); }).catch(function() { window.wsToast('Share: ' + wsLastResult.commonName); });
+      } else {
+        window.wsToast('Share: ' + wsLastResult.commonName);
+      }
+    }
+  };
+
+})();
+</script>
+</body>
+</html>
