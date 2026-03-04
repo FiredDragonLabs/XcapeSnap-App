@@ -1,17 +1,16 @@
 'use strict';
 
-const express   = require('express');
-const cors      = require('cors');
-const fetch     = require('node-fetch');
-const crypto    = require('crypto');
-const rateLimit = require('express-rate-limit');
+const express = require('express');
+const cors    = require('cors');
+const fetch   = require('node-fetch');
+const crypto  = require('crypto');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const GEMINI_KEY        = process.env.GEMINI_API_KEY;
 const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID;
-const API_SECRET        = process.env.XCAPESNAP_API_SECRET; // Set this in Render env vars
+const API_SECRET        = process.env.XCAPESNAP_API_SECRET;
 
 // ── ALLOWED MIME TYPES ──
 const ALLOWED_MIME_TYPES = new Set([
@@ -19,17 +18,36 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/webp', 'image/heic', 'image/heif'
 ]);
 
-// ── RATE LIMITER — 20 identify requests per IP per 10 minutes ──
-const identifyLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests. Please slow down and try again shortly.' }
-});
+// ── ZERO-DEPENDENCY RATE LIMITER — 20 requests per IP per 10 minutes ──
+const rateLimitMap = new Map();
+const RATE_LIMIT_MAX    = 20;
+const RATE_LIMIT_WINDOW = 10 * 60 * 1000; // 10 minutes in ms
+
+function identifyLimiter(req, res, next) {
+  const ip  = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+    rateLimitMap.set(ip, { count: 1, windowStart: now });
+    return next();
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: 'Too many requests. Please slow down and try again shortly.' });
+  }
+  entry.count++;
+  return next();
+}
+
+// Prune stale IPs every 30 minutes to prevent memory bloat
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now - entry.windowStart > RATE_LIMIT_WINDOW) rateLimitMap.delete(ip);
+  }
+}, 30 * 60 * 1000);
 
 // ── BINOMIAL NOMENCLATURE VALIDATOR ──
-// Real species always follow "Genus species" Latin format (2–3 words, first capitalized)
 function isValidScientificName(name) {
   if (!name || typeof name !== 'string') return false;
   return /^[A-Z][a-z]+ [a-z]+( [a-z]+)?$/.test(name.trim());
