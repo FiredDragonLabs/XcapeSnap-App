@@ -163,23 +163,41 @@ STRICT RULES — read carefully before responding:
 5. If the animal is in a drawing, cartoon, stuffed toy, or statue (not a real living creature) — set noAnimalFound:true and rejectionReason:"not_real_animal".
 6. Do NOT attempt to identify or describe anything that is not a real animal.
 
+FIELD INSTRUCTIONS:
+- commonName: the well-known common name (e.g. "Gorilla")
+- subspecies: the specific breed or subspecies if identifiable (e.g. "Western Lowland Gorilla"). If not determinable, use an empty string.
+- scientificName: full Latin binomial (e.g. "Gorilla gorilla gorilla")
+- animalType: primary animal class (e.g. "Mammal", "Reptile", "Bird")
+- dangerLevel: integer 1–5 (1=harmless, 2=caution, 3=moderate, 4=dangerous, 5=deadly)
+- dangerLabel: one-word label matching dangerLevel (e.g. "Harmless", "Caution", "Moderate", "Dangerous", "Deadly")
+- description: 2–3 sentence overview of the animal's appearance, behavior, and ecological role
+- habitat: primary habitat and geographic range in one sentence
+- conservationStatus: IUCN Red List status (e.g. "Least Concern", "Near Threatened", "Vulnerable", "Endangered", "Critically Endangered", "Extinct in the Wild", "Extinct", or "Data Deficient")
+- quickStats: object with lifespan (e.g. "35–40 years"), weight (e.g. "135–220 kg"), and size (e.g. "1.4–1.8 m tall")
+- encounterDo: array of 3 specific, practical things to DO if encountered in the wild
+- encounterDont: array of 4 specific, practical things NOT to do if encountered in the wild
+- wildFacts: array of exactly 3 rich, fascinating facts — include evolutionary history, unique behaviors, cultural significance, record-breaking traits, or surprising science. Each fact should be 2–3 sentences.
+- tags: array of 3–5 descriptive classification tags in uppercase (e.g. "PRIMATE", "HERBIVORE", "AFRICA")
+
 Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
 {
   "commonName":"",
+  "subspecies":"",
   "scientificName":"",
   "animalType":"",
   "dangerLevel":1,
   "dangerLabel":"",
   "description":"",
   "habitat":"",
+  "conservationStatus":"",
+  "quickStats":{"lifespan":"","weight":"","size":""},
   "encounterDo":["","",""],
   "encounterDont":["","","",""],
-  "funFact":"",
+  "wildFacts":["","",""],
   "tags":["",""],
   "noAnimalFound":false,
   "rejectionReason":""
-}
-dangerLevel 1=harmless, 2=caution, 3=moderate, 4=dangerous, 5=deadly.`;
+}`;
 
   try {
     const geminiRes = await fetch(
@@ -192,7 +210,7 @@ dangerLevel 1=harmless, 2=caution, 3=moderate, 4=dangerous, 5=deadly.`;
             { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageData } },
             { text: prompt }
           ]}],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1800 }
         })
       }
     );
