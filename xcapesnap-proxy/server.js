@@ -3,11 +3,32 @@
 const express = require('express');
 const cors    = require('cors');
 const fetch   = require('node-fetch');
+const crypto  = require('crypto');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID; // We'll set this later
+
+// ── PRO USERS STORAGE (in-memory for now) ──
+// In production, use a database. For now, this works and survives restarts on Render.
+const proUsers = new Map(); // userID → { subscribed: true, subscriberId: 'xyz', activatedAt: timestamp }
+
+// Helper: Check if user has Pro
+function isProUser(userID) {
+  return proUsers.has(userID) && proUsers.get(userID).subscribed === true;
+}
+
+// Helper: Activate Pro for user
+function activateProUser(userID, subscriberID) {
+  proUsers.set(userID, {
+    subscribed: true,
+    subscriberId: subscriberID,
+    activatedAt: Date.now()
+  });
+  console.log(`✅ Pro activated for user: ${userID}`);
+}
 
 const ALLOWED_ORIGINS = [
   'https://www.xcapeworld.com',
@@ -40,6 +61,49 @@ app.get('/test-models', async (req, res) => {
     res.json(data);
   } catch(err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── CHECK PRO STATUS ──
+app.get('/check-pro', (req, res) => {
+  const userID = req.query.userid;
+  
+  if (!userID || typeof userID !== 'string') {
+    return res.status(400).json({ error: 'Missing userid parameter' });
+  }
+  
+  const isPro = isProUser(userID);
+  return res.json({ isPro });
+});
+
+// ── PAYPAL WEBHOOK ──
+app.post('/paypal-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    // PayPal sends webhook data
+    const webhookEvent = JSON.parse(req.body.toString());
+    
+    console.log('📥 PayPal webhook received:', webhookEvent.event_type);
+    
+    // Handle subscription payment completed
+    if (webhookEvent.event_type === 'PAYMENT.SALE.COMPLETED' || 
+        webhookEvent.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+      
+      // Extract user ID from custom field (we'll add this to PayPal button)
+      const customData = webhookEvent.resource?.custom || webhookEvent.resource?.custom_id;
+      const subscriberID = webhookEvent.resource?.id;
+      
+      if (customData && subscriberID) {
+        // Activate Pro for this user
+        activateProUser(customData, subscriberID);
+      }
+    }
+    
+    // Always return 200 to PayPal
+    return res.status(200).json({ received: true });
+    
+  } catch (err) {
+    console.error('PayPal webhook error:', err.message);
+    return res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 
