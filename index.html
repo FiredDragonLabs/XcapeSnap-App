@@ -969,7 +969,10 @@
 
   // ── CONSTANTS ──
   const WS_FREE_LIMIT = 5;
-  const WS_PROXY_URL = 'https://xcapesnap-app.onrender.com/identify';
+  const WS_PROXY_URL  = 'https://xcapesnap-app.onrender.com/identify';
+  // Set this to match XCAPESNAP_API_SECRET in your Render env vars.
+  // Leave as empty string ('') until you configure the env var on Render.
+  const WS_API_SECRET = '';
 
   // ── USER ID GENERATION (like Band-8) ──
   function wsGenerateUserID() {
@@ -1209,9 +1212,14 @@
 
   // ── PROXY CALL — API key lives on server, never exposed in browser ──
   async function wsCallGemini(b64) {
+    const headers = { 'Content-Type': 'application/json' };
+    // Include shared secret if configured (matches XCAPESNAP_API_SECRET on server)
+    if (typeof WS_API_SECRET !== 'undefined' && WS_API_SECRET) {
+      headers['X-XcapeSnap-Secret'] = WS_API_SECRET;
+    }
     const res = await fetch(WS_PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ imageData: b64, mimeType: 'image/jpeg' })
     });
 
