@@ -347,7 +347,8 @@
     padding: 12px;
   }
   #wildsnap-app .r-name { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px; color:var(--ws-yellow); line-height:1; }
-  #wildsnap-app .r-sci  { font-size:11px; color:rgba(255,255,255,0.65); font-style:italic; margin-top:2px; }
+  #wildsnap-app .r-sub  { font-size:12px; color:rgba(245,197,24,0.75); font-weight:600; letter-spacing:1px; margin-top:2px; text-transform:uppercase; }
+  #wildsnap-app .r-sci  { font-size:11px; color:rgba(255,255,255,0.65); font-style:italic; margin-top:1px; }
 
   #wildsnap-app .card {
     background: var(--ws-dark3);
@@ -388,6 +389,29 @@
   #wildsnap-app .action-num { width:20px; height:20px; background:var(--ws-yellow); color:#000; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
   #wildsnap-app .action-num.red { background:var(--d5); color:#fff; }
   #wildsnap-app .action-text { font-size:12px; line-height:1.6; color:var(--ws-text); font-weight:300; }
+
+  /* Quick Stats */
+  #wildsnap-app .qs-row { display:flex; gap:8px; margin-top:4px; }
+  #wildsnap-app .qs-item { flex:1; background:rgba(245,197,24,0.06); border:1px solid rgba(245,197,24,0.15); border-radius:10px; padding:10px 8px; text-align:center; }
+  #wildsnap-app .qs-label { font-size:9px; letter-spacing:1.5px; color:var(--ws-dim); text-transform:uppercase; margin-bottom:4px; }
+  #wildsnap-app .qs-value { font-size:12px; font-weight:600; color:var(--ws-text); }
+
+  /* Conservation badge */
+  #wildsnap-app .cons-badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-top:4px; }
+  .cons-lc   { background:rgba(76,175,80,0.18);  border:1px solid #4CAF50; color:#4CAF50; }
+  .cons-nt   { background:rgba(139,195,74,0.18); border:1px solid #8BC34A; color:#8BC34A; }
+  .cons-vu   { background:rgba(255,193,7,0.18);  border:1px solid #FFC107; color:#FFC107; }
+  .cons-en   { background:rgba(255,87,34,0.18);  border:1px solid #FF5722; color:#FF5722; }
+  .cons-cr   { background:rgba(244,67,54,0.18);  border:1px solid #F44336; color:#F44336; }
+  .cons-ew   { background:rgba(156,39,176,0.18); border:1px solid #9C27B0; color:#9C27B0; }
+  .cons-ex   { background:rgba(100,100,100,0.18);border:1px solid #888;    color:#888; }
+  .cons-dd   { background:rgba(136,136,136,0.15);border:1px solid #888;    color:#888; }
+
+  /* Wild Facts numbered */
+  #wildsnap-app .wf-item { display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
+  #wildsnap-app .wf-item:last-child { margin-bottom:0; }
+  #wildsnap-app .wf-num { width:22px; height:22px; background:rgba(245,197,24,0.15); border:1px solid rgba(245,197,24,0.4); color:var(--ws-yellow); border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+  #wildsnap-app .wf-text { font-size:12px; line-height:1.65; color:var(--ws-text); font-weight:300; }
 
   /* Tags */
   #wildsnap-app .tag-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:3px; }
@@ -1215,6 +1239,7 @@
         <img src="${imgSrc}" alt="${d.commonName}">
         <div class="r-thumb-overlay"><div>
           <div class="r-name">${d.commonName}</div>
+          ${d.subspecies ? `<div class="r-sub">${d.subspecies}</div>` : ''}
           <div class="r-sci">${d.scientificName||''}</div>
         </div></div>
       </div>
@@ -1249,10 +1274,36 @@
         <div class="action-list">${d.encounterDont.map((a,i)=>`<div class="action-item"><div class="action-num red">${i+1}</div><div class="action-text">${a}</div></div>`).join('')}</div>
       </div>`;
 
-    if (d.funFact) html += `
-      <div class="card" style="animation-delay:.3s;border-color:rgba(245,197,24,.22)">
-        <div class="card-title">&#9889; Wild Fact</div>
-        <div class="card-body">${d.funFact}</div>
+    if (d.conservationStatus) {
+      const csMap = {
+        'Least Concern':'lc','Near Threatened':'nt','Vulnerable':'vu',
+        'Endangered':'en','Critically Endangered':'cr','Extinct in the Wild':'ew','Extinct':'ex','Data Deficient':'dd'
+      };
+      const csKey = csMap[d.conservationStatus] || 'dd';
+      html += `
+      <div class="card" style="animation-delay:.28s">
+        <div class="card-title">&#127807; Conservation Status</div>
+        <div class="cons-badge cons-${csKey}">${d.conservationStatus}</div>
+      </div>`;
+    }
+
+    if (d.quickStats && (d.quickStats.lifespan || d.quickStats.weight || d.quickStats.size)) {
+      html += `
+      <div class="card" style="animation-delay:.31s">
+        <div class="card-title">&#128202; Quick Stats</div>
+        <div class="qs-row">
+          ${d.quickStats.lifespan?`<div class="qs-item"><div class="qs-label">Lifespan</div><div class="qs-value">${d.quickStats.lifespan}</div></div>`:''}
+          ${d.quickStats.weight?`<div class="qs-item"><div class="qs-label">Weight</div><div class="qs-value">${d.quickStats.weight}</div></div>`:''}
+          ${d.quickStats.size?`<div class="qs-item"><div class="qs-label">Size</div><div class="qs-value">${d.quickStats.size}</div></div>`:''}
+        </div>
+      </div>`;
+    }
+
+    const facts = d.wildFacts || (d.funFact ? [d.funFact] : []);
+    if (facts.length) html += `
+      <div class="card" style="animation-delay:.34s;border-color:rgba(245,197,24,.22)">
+        <div class="card-title">&#9889; Wild Facts</div>
+        ${facts.map((f,i)=>`<div class="wf-item"><div class="wf-num">${i+1}</div><div class="wf-text">${f}</div></div>`).join('')}
       </div>`;
 
     html += `<div style="text-align:center;padding:14px 0 6px;opacity:.35;font-size:10px;letter-spacing:2px;text-transform:uppercase">XcapeSnap &middot; Xcapeworld</div>`;
@@ -1289,18 +1340,24 @@
     if (!win) { wsToast('Allow popups to save PDF'); return; }
     win.document.write(`<!DOCTYPE html><html><head><title>XcapeSnap — ${d.commonName}</title>
     <style>body{font-family:Arial,sans-serif;background:#0A0A0A;color:#F0F0F0;padding:30px;max-width:580px;margin:0 auto}
-    h1{color:#F5C518;font-size:32px;letter-spacing:3px;margin-bottom:4px}.sci{color:#888;font-style:italic;margin-bottom:20px}
+    h1{color:#F5C518;font-size:32px;letter-spacing:3px;margin-bottom:2px}.sub{color:#F5C518;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}.sci{color:#888;font-style:italic;margin-bottom:20px}
     .card{background:#1A1A1A;border:1px solid #333;border-radius:10px;padding:16px;margin-bottom:12px}
     .lbl{color:#F5C518;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
     .body{font-size:13px;line-height:1.7;color:#DDD}.tag{display:inline-block;background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:#F5C518;font-size:10px;padding:3px 8px;border-radius:12px;margin:2px;text-transform:uppercase;letter-spacing:1px}
+    .qs-row{display:flex;gap:8px;margin-top:6px}.qs-item{flex:1;background:rgba(245,197,24,.06);border:1px solid rgba(245,197,24,.2);border-radius:8px;padding:8px;text-align:center}.qs-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}.qs-val{font-size:12px;font-weight:700;color:#F0F0F0}
+    .wf-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}.wf-num{width:22px;height:22px;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.4);color:#F5C518;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}.wf-text{font-size:13px;line-height:1.65;color:#DDD}
     li{font-size:13px;line-height:1.8;color:#CCC}.footer{text-align:center;margin-top:28px;color:#444;font-size:11px;letter-spacing:2px}</style></head><body>
-    <h1>${d.commonName}</h1><div class="sci">${d.scientificName||''}</div>
+    <h1>${d.commonName}</h1>
+    ${d.subspecies?`<div class="sub">${d.subspecies}</div>`:''}
+    <div class="sci">${d.scientificName||''}</div>
     <div class="card"><div class="lbl">Classification</div><div class="tag">${d.animalType}</div>${(d.tags||[]).map(t=>`<div class="tag">${t}</div>`).join('')}</div>
     <div class="card"><div class="lbl">Danger Level</div><div style="font-size:22px;color:${dc};font-weight:bold">${d.dangerLevel}/5 — ${d.dangerLabel}</div></div>
     <div class="card"><div class="lbl">About</div><div class="body">${d.description}</div>${d.habitat?`<div class="body" style="margin-top:8px;color:#888">📍 ${d.habitat}</div>`:''}</div>
+    ${d.conservationStatus?`<div class="card"><div class="lbl">Conservation Status</div><div style="font-size:14px;font-weight:700;margin-top:4px">${d.conservationStatus}</div></div>`:''}
+    ${d.quickStats&&(d.quickStats.lifespan||d.quickStats.weight||d.quickStats.size)?`<div class="card"><div class="lbl">Quick Stats</div><div class="qs-row">${d.quickStats.lifespan?`<div class="qs-item"><div class="qs-lbl">Lifespan</div><div class="qs-val">${d.quickStats.lifespan}</div></div>`:''} ${d.quickStats.weight?`<div class="qs-item"><div class="qs-lbl">Weight</div><div class="qs-val">${d.quickStats.weight}</div></div>`:''} ${d.quickStats.size?`<div class="qs-item"><div class="qs-lbl">Size</div><div class="qs-val">${d.quickStats.size}</div></div>`:''}</div></div>`:''}
     ${d.encounterDo?.length?`<div class="card"><div class="lbl">✅ DO</div><ol>${d.encounterDo.map(a=>`<li>${a}</li>`).join('')}</ol></div>`:''}
     ${d.encounterDont?.length?`<div class="card"><div class="lbl">🚫 DO NOT</div><ol>${d.encounterDont.map(a=>`<li>${a}</li>`).join('')}</ol></div>`:''}
-    ${d.funFact?`<div class="card"><div class="lbl">⚡ Wild Fact</div><div class="body">${d.funFact}</div></div>`:''}
+    ${(d.wildFacts||[d.funFact]).filter(Boolean).length?`<div class="card"><div class="lbl">⚡ Wild Facts</div>${(d.wildFacts||[d.funFact]).filter(Boolean).map((f,i)=>`<div class="wf-item"><div class="wf-num">${i+1}</div><div class="wf-text">${f}</div></div>`).join('')}</div>`:''}
     <div class="footer">XcapeSnap by Xcapeworld &middot; ${new Date().toLocaleDateString()}</div>
     <script>window.print();<\/script>
     </body></html>`);
