@@ -537,19 +537,6 @@
   #wildsnap-app .upgrade-paypal-info strong {
     color: var(--ws-yellow);
   }
-  #wildsnap-app .upgrade-code-link {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(245,197,24,0.1);
-    font-size: 11px;
-    color: #888;
-    text-align: center;
-    cursor: pointer;
-    transition: color 0.2s;
-  }
-  #wildsnap-app .upgrade-code-link:hover {
-    color: #AAA;
-  }
 
   /* ============ TOAST ============ */
   #ws-toast {
@@ -668,16 +655,7 @@
   #wildsnap-app .um-paypal-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:15px; background:var(--ws-yellow); color:#000; border:none; border-radius:12px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; text-decoration:none; box-shadow:0 0 20px rgba(245,197,24,0.4); margin-bottom:6px; box-sizing:border-box; transition:opacity 0.2s; }
   #wildsnap-app .um-paypal-btn:active { opacity:0.82; }
   #wildsnap-app .um-price { font-size:11px; color:var(--ws-dim); margin-bottom:20px; letter-spacing:0.5px; }
-  #wildsnap-app .um-divider { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
-  #wildsnap-app .um-divider::before, #wildsnap-app .um-divider::after { content:''; flex:1; height:1px; background:rgba(245,197,24,0.15); }
-  #wildsnap-app .um-divider span { font-size:10px; color:var(--ws-dim); letter-spacing:1px; text-transform:uppercase; white-space:nowrap; }
-  #wildsnap-app .um-code-input { width:100%; padding:11px 14px; background:rgba(255,255,255,0.05); border:1px solid rgba(245,197,24,0.25); border-radius:10px; color:var(--ws-text); font-family:'Exo 2',sans-serif; font-size:14px; letter-spacing:2px; text-transform:uppercase; text-align:center; box-sizing:border-box; margin-bottom:10px; outline:none; transition:border-color 0.2s; }
-  #wildsnap-app .um-code-input:focus { border-color:rgba(245,197,24,0.6); }
-  #wildsnap-app .um-code-input::placeholder { letter-spacing:1px; text-transform:none; color:var(--ws-dim); font-size:12px; }
-  #wildsnap-app .um-unlock-btn { width:100%; padding:11px; background:transparent; border:1px solid rgba(245,197,24,0.35); border-radius:10px; color:var(--ws-yellow); font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; margin-bottom:14px; }
-  #wildsnap-app .um-unlock-btn:active { background:rgba(245,197,24,0.1); }
   #wildsnap-app .um-close-link { font-size:11px; color:var(--ws-dim); cursor:pointer; letter-spacing:0.5px; text-decoration:underline; }
-  #wildsnap-app .um-code-err { font-size:11px; color:#F44336; margin-bottom:8px; display:none; }
 </style>
 
 <!--============ APP CONTAINER ============-->
@@ -779,7 +757,7 @@
       <div class="menu-item" onclick="window.open('https://www.xcapeworld.com/p/terms.html','_blank')"><svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Terms of Use</div>
       <div class="menu-item" onclick="window.open('https://www.xcapeworld.com/p/privacy-policy.html','_blank')"><svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Privacy Policy</div>
       <div class="upgrade-wrap">
-        <a class="upgrade-btn" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=N6Z6V5GCNPCZ8" target="_blank">⚡ UPGRADE TO PRO</a>
+        <a class="upgrade-btn" href="#" onclick="wsOpenPayPal(); return false;">⚡ UPGRADE TO PRO</a>
         <div class="upgrade-sub">$9.99 / month • Unlimited snaps</div>
         <div class="upgrade-benefits">
           <div class="benefit-item">✓ No monthly limits</div>
@@ -790,9 +768,6 @@
         <div class="upgrade-paypal-info">
           💳 <strong>No PayPal account needed</strong><br>
           Pay with any credit or debit card as guest
-        </div>
-        <div class="upgrade-code-link" onclick="wsShowUpgradeModal(); document.getElementById('ws-menuOverlay').classList.remove('open');">
-          Already have an unlock code? <span style="color: var(--ws-yellow); text-decoration: underline;">Enter it here →</span>
         </div>
       </div>
     </div>
@@ -805,12 +780,8 @@
       <div class="um-title">Upgrade to Pro</div>
       <div class="um-sub">You've used all <strong style="color: var(--ws-yellow);">5 free snaps</strong> this month.</div>
       <div class="um-reset" id="ws-resetDate">Resets on the 1st of next month</div>
-      <a class="um-paypal-btn" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=N6Z6V5GCNPCZ8" target="_blank">⚡ GET UNLIMITED — $9.99/mo</a>
-      <div class="um-price">After paying, return here and enter your unlock code below.</div>
-      <div class="um-divider"><span>Already paid?</span></div>
-      <div class="um-code-err" id="ws-codeErr">Invalid code. Please try again.</div>
-      <input class="um-code-input" id="ws-codeInput" maxlength="20" type="text" />
-      <button class="um-unlock-btn" onclick="wsUnlockPro()">UNLOCK PRO ACCESS</button>
+      <a class="um-paypal-btn" href="#" onclick="wsOpenPayPal(); return false;">⚡ GET UNLIMITED — $9.99/mo</a>
+      <div class="um-price">Subscribe now to get unlimited wildlife identifications. Cancel anytime from your PayPal account.</div>
       <div class="um-close-link" onclick="wsCloseUpgradeModal()">Maybe later</div>
     </div>
   </div>
@@ -849,8 +820,70 @@
 
   // ── CONSTANTS ──
   const WS_FREE_LIMIT = 5;
-  const WS_UNLOCK_CODE = 'XCAPESNAP99';
   const WS_PROXY_URL = 'https://xcapesnap-app.onrender.com/identify';
+
+  // ── USER ID GENERATION (like Band-8) ──
+  function wsGenerateUserID() {
+    // Check if we already have a user ID
+    let userID = localStorage.getItem('xs_userid');
+    if (userID) return userID;
+    
+    // Generate fingerprint from browser info
+    const nav = navigator;
+    const screen = window.screen;
+    const fingerprint = [
+      nav.userAgent,
+      nav.language,
+      screen.colorDepth,
+      screen.width + 'x' + screen.height,
+      new Date().getTimezoneOffset(),
+      !!window.sessionStorage,
+      !!window.localStorage
+    ].join('|');
+    
+    // Simple hash function
+    let hash = 0;
+    for (let i = 0; i < fingerprint.length; i++) {
+      const char = fingerprint.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    
+    // Create user ID from hash + random component
+    userID = 'XS' + Math.abs(hash).toString(36) + Date.now().toString(36);
+    localStorage.setItem('xs_userid', userID);
+    return userID;
+  }
+
+  // ── CHECK PRO STATUS FROM BACKEND ──
+  async function wsCheckProStatus() {
+    const userID = wsGenerateUserID();
+    
+    try {
+      const response = await fetch(`${WS_PROXY_URL.replace('/identify', '')}/check-pro?userid=${userID}`);
+      const data = await response.json();
+      
+      if (data.isPro) {
+        // Backend says user has Pro - activate it locally
+        localStorage.setItem('xs_pro', 'true');
+        console.log('✅ Pro status verified from backend');
+      } else {
+        // Check if locally stored Pro status exists (keep it if user previously had it)
+        // This preserves Pro status between backend restarts
+        const localPro = localStorage.getItem('xs_pro');
+        if (localPro !== 'true') {
+          localStorage.setItem('xs_pro', 'false');
+        }
+      }
+      
+      wsUpdateCounterUI();
+      
+    } catch (err) {
+      console.error('Pro status check failed:', err);
+      // On error, trust local storage
+      wsUpdateCounterUI();
+    }
+  }
 
   // ── STATE ──
   let wsStream = null;
@@ -957,7 +990,7 @@
 
   // Init
   wsLoadState();
-  wsUpdateCounterUI();
+  wsCheckProStatus(); // Check Pro status from backend
   wsStartCam();
 
   // ── SNAP ──
@@ -1111,29 +1144,15 @@
   };
   window.wsCloseUpgradeModal = function() {
     document.getElementById('ws-upgradeModal').classList.remove('show');
-    document.getElementById('ws-codeInput').value = '';
-    document.getElementById('ws-codeErr').style.display = 'none';
   };
 
-  // ── PRO UNLOCK ──
-  window.wsUnlockPro = function() {
-    const input = document.getElementById('ws-codeInput').value.trim().toUpperCase();
-    const errEl = document.getElementById('ws-codeErr');
-    if (input === WS_UNLOCK_CODE) {
-      localStorage.setItem('xs_pro', 'true');
-      wsCloseUpgradeModal();
-      wsUpdateCounterUI();
-      wsToast('PRO UNLOCKED — Unlimited Snaps!');
-    } else {
-      errEl.style.display = 'block';
-      document.getElementById('ws-codeInput').value = '';
-    }
+  // ── OPEN PAYPAL WITH USER ID ──
+  window.wsOpenPayPal = function() {
+    const userID = wsGenerateUserID();
+    const paypalURL = `https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=N6Z6V5GCNPCZ8&custom=${encodeURIComponent(userID)}`;
+    window.open(paypalURL, '_blank');
+    console.log('📤 Opening PayPal with user ID:', userID);
   };
-
-  // Allow Enter key on code input
-  document.getElementById('ws-codeInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') wsUnlockPro();
-  });
 
   // ── SAVE PDF ──
   window.wsSavePDF = function() {
