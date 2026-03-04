@@ -194,6 +194,42 @@
     100% { top: 74%; opacity: 0; }
   }
 
+  /* ============ NIGHT MODE ============ */
+  #wildsnap-app .night-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 255, 80, 0.07);
+    pointer-events: none;
+    z-index: 8;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  #wildsnap-app.night-active .night-overlay { opacity: 1; }
+  #wildsnap-app.night-active #ws-video {
+    filter: brightness(1.55) contrast(1.25) saturate(0.6);
+  }
+  #wildsnap-app .btn-night {
+    width: 36px; height: 36px;
+    background: rgba(245,197,24,0.07);
+    border: 1.5px solid rgba(245,197,24,0.25);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    color: rgba(245,197,24,0.55);
+    font-size: 16px;
+  }
+  #wildsnap-app .btn-night:active { transform: scale(0.92); }
+  #wildsnap-app.night-active .btn-night {
+    background: rgba(0,255,80,0.12);
+    border-color: rgba(0,255,80,0.55);
+    color: #00ff50;
+    box-shadow: 0 0 10px rgba(0,255,80,0.25);
+  }
+
   #wildsnap-app .cam-hint {
     position: absolute;
     bottom: 8px;
@@ -783,7 +819,10 @@
   <div class="screen active" id="ws-camScreen">
     <div class="topbar">
       <div class="logo">Xcape<span>Snap</span></div>
-      <div class="hamburger" onclick="wsOpenMenu()"><b></b><b></b><b></b></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="btn-night" id="ws-nightBtn" onclick="wsToggleNight()" title="Night Mode">🌙</div>
+        <div class="hamburger" onclick="wsOpenMenu()"><b></b><b></b><b></b></div>
+      </div>
     </div>
     <div id="ws-snapCounter">
       <div class="sc-pips">
@@ -798,6 +837,7 @@
     <div id="ws-proBadge">⚡ PRO — Unlimited</div>
     <div class="viewfinder" id="ws-viewfinder">
       <video autoplay="" id="ws-video" muted="" playsinline=""></video>
+      <div class="night-overlay" id="ws-nightOverlay"></div>
       <div class="no-cam" id="ws-noCam" style="display: none;">
         <svg fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
         <p>Tap Upload to identify from a photo, or allow camera access</p>
@@ -1145,6 +1185,14 @@
   wsCheckProStatus(); // Check Pro status from backend
   wsStartCam();
 
+  // ── NIGHT MODE ──
+  let wsNightMode = false;
+  window.wsToggleNight = function() {
+    wsNightMode = !wsNightMode;
+    document.getElementById('wildsnap-app').classList.toggle('night-active', wsNightMode);
+    wsToast(wsNightMode ? '🌙 Night Mode ON' : '☀️ Night Mode OFF');
+  };
+
   // ── SNAP ──
   window.wsSnap = function() {
     // Check limit first
@@ -1164,7 +1212,14 @@
 
     const c = document.getElementById('ws-canvas');
     c.width = v.videoWidth; c.height = v.videoHeight;
-    c.getContext('2d').drawImage(v, 0, 0);
+    const ctx = c.getContext('2d');
+
+    // ── Night mode: apply brightness/contrast to captured frame ──
+    if (wsNightMode) {
+      ctx.filter = 'brightness(1.6) contrast(1.3) saturate(0.5)';
+    }
+    ctx.drawImage(v, 0, 0);
+    ctx.filter = 'none'; // reset for next frame
     const dataURL = c.toDataURL('image/jpeg', 0.85);
     wsCaptured = dataURL.split(',')[1];
     wsProcess(dataURL);
