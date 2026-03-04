@@ -1,15 +1,39 @@
 'use strict';
 
-const express = require('express');
-const cors    = require('cors');
-const fetch   = require('node-fetch');
-const crypto  = require('crypto');
+const express   = require('express');
+const cors      = require('cors');
+const fetch     = require('node-fetch');
+const crypto    = require('crypto');
+const rateLimit = require('express-rate-limit');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID; // We'll set this later
+const GEMINI_KEY        = process.env.GEMINI_API_KEY;
+const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID;
+const API_SECRET        = process.env.XCAPESNAP_API_SECRET; // Set this in Render env vars
+
+// ── ALLOWED MIME TYPES ──
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png',
+  'image/webp', 'image/heic', 'image/heif'
+]);
+
+// ── RATE LIMITER — 20 identify requests per IP per 10 minutes ──
+const identifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down and try again shortly.' }
+});
+
+// ── BINOMIAL NOMENCLATURE VALIDATOR ──
+// Real species always follow "Genus species" Latin format (2–3 words, first capitalized)
+function isValidScientificName(name) {
+  if (!name || typeof name !== 'string') return false;
+  return /^[A-Z][a-z]+ [a-z]+( [a-z]+)?$/.test(name.trim());
+}
 
 // ── PRO USERS STORAGE (in-memory for now) ──
 // In production, use a database. For now, this works and survives restarts on Render.
@@ -142,12 +166,33 @@ app.post('/paypal-webhook', async (req, res) => {
 });
 
 // ── PROXY ENDPOINT ──
-app.post('/identify', async (req, res) => {
+app.post('/identify', identifyLimiter, async (req, res) => {
+  // ── GAP 5 FIX: Shared secret header check — blocks direct API abuse ──
+  // Frontend must send X-XcapeSnap-Secret header matching XCAPESNAP_API_SECRET env var.
+  // If env var is not set, this check is skipped (allows gradual rollout).
+  if (API_SECRET) {
+    const clientSecret = req.headers['x-xcapesnap-secret'];
+    if (!clientSecret || clientSecret !== API_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
   const { imageData, mimeType } = req.body;
 
   if (!imageData || typeof imageData !== 'string') {
     return res.status(400).json({ error: 'Missing imageData' });
   }
+
+  // ── GAP 3 FIX: Whitelist mimeType — reject non-image payloads ──
+  const safeMime = (typeof mimeType === 'string' && ALLOWED_MIME_TYPES.has(mimeType.toLowerCase()))
+    ? mimeType.toLowerCase()
+    : 'image/jpeg';
+
+  // ── Basic imageData sanity: must be non-trivial base64 ──
+  if (imageData.length < 100) {
+    return res.status(400).json({ error: 'Invalid image data' });
+  }
+
   if (!GEMINI_KEY) {
     return res.status(500).json({ error: 'Server misconfigured' });
   }
@@ -155,18 +200,20 @@ app.post('/identify', async (req, res) => {
   // ── HARDENED PROMPT — strict animal-only guardrail ──
   const prompt = `You are XcapeSnap, a wildlife identification system for outdoor enthusiasts.
 
-STRICT RULES — read carefully before responding:
-1. You ONLY identify real animals: mammals, birds, reptiles, amphibians, fish, insects, arachnids, marine life, or any other creature in the animal kingdom.
-2. If the image contains a human, group of humans, or primarily shows a person — set noAnimalFound:true and rejectionReason:"no_animal".
-3. If the image contains no animal at all (objects, food, landscapes, vehicles, text, abstract images, etc.) — set noAnimalFound:true and rejectionReason:"no_animal".
-4. If the image is too blurry, dark, or unclear to confidently identify — set noAnimalFound:true and rejectionReason:"unclear_image".
-5. If the animal is in a drawing, cartoon, stuffed toy, or statue (not a real living creature) — set noAnimalFound:true and rejectionReason:"not_real_animal".
-6. Do NOT attempt to identify or describe anything that is not a real animal.
+STRICT RULES — read ALL carefully before responding:
+1. You ONLY identify real, verified animals that exist as confirmed species in the animal kingdom.
+2. If the image contains a human, group of humans, or primarily shows a person — set noAnimalFound:true, rejectionReason:"no_animal", isVerifiedSpecies:false.
+3. If the image contains no animal at all (objects, food, landscapes, vehicles, text, abstract images, etc.) — set noAnimalFound:true, rejectionReason:"no_animal", isVerifiedSpecies:false.
+4. If the image is too blurry, dark, or unclear to confidently identify — set noAnimalFound:true, rejectionReason:"unclear_image", isVerifiedSpecies:false.
+5. If the animal is in a drawing, cartoon, stuffed toy, or statue (not a real living creature) — set noAnimalFound:true, rejectionReason:"not_real_animal", isVerifiedSpecies:false.
+6. CRITICAL: If the animal appears to be AI-generated, fictional, mythological, a fantasy creature, a hybrid that does not exist in nature, or any species that cannot be found in a real-world taxonomy database — set noAnimalFound:true, rejectionReason:"not_real_animal", isVerifiedSpecies:false. This includes dragons, griffins, chimeras, sci-fi creatures, or any creature you cannot assign a real Latin binomial scientific name to.
+7. Do NOT attempt to identify or describe anything that is not a verified real animal with a known scientific name.
+8. isVerifiedSpecies MUST be true only if you are confident this is a real, taxonomically verified species with a legitimate Latin binomial name. If you have any doubt, set it to false and reject.
 
 FIELD INSTRUCTIONS:
 - commonName: the well-known common name (e.g. "Gorilla")
 - subspecies: the specific breed or subspecies if identifiable (e.g. "Western Lowland Gorilla"). If not determinable, use an empty string.
-- scientificName: full Latin binomial (e.g. "Gorilla gorilla gorilla")
+- scientificName: full Latin binomial (e.g. "Gorilla gorilla gorilla") — MUST be a real, verifiable scientific name
 - animalType: primary animal class (e.g. "Mammal", "Reptile", "Bird")
 - dangerLevel: integer 1–5 (1=harmless, 2=caution, 3=moderate, 4=dangerous, 5=deadly)
 - dangerLabel: one-word label matching dangerLevel (e.g. "Harmless", "Caution", "Moderate", "Dangerous", "Deadly")
@@ -178,6 +225,7 @@ FIELD INSTRUCTIONS:
 - encounterDont: array of 4 specific, practical things NOT to do if encountered in the wild
 - wildFacts: array of exactly 3 rich, fascinating facts — include evolutionary history, unique behaviors, cultural significance, record-breaking traits, or surprising science. Each fact should be 2–3 sentences.
 - tags: array of 3–5 descriptive classification tags in uppercase (e.g. "PRIMATE", "HERBIVORE", "AFRICA")
+- isVerifiedSpecies: boolean — true ONLY if this is a confirmed real species with a valid scientific name
 
 Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
 {
@@ -195,6 +243,7 @@ Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
   "encounterDont":["","","",""],
   "wildFacts":["","",""],
   "tags":["",""],
+  "isVerifiedSpecies":false,
   "noAnimalFound":false,
   "rejectionReason":""
 }`;
@@ -207,7 +256,7 @@ Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [
-            { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageData } },
+            { inlineData: { mimeType: safeMime, data: imageData } },
             { text: prompt }
           ]}],
           generationConfig: { temperature: 0.1, maxOutputTokens: 1800 }
@@ -230,17 +279,37 @@ Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
     try { parsed = JSON.parse(txt); }
     catch (e) { return res.status(422).json({ error: 'Could not parse response' }); }
 
-    // ── SERVER-SIDE GUARDRAIL — double-check the rejection ──
+    // ── TRIPWIRE 1: noAnimalFound flag ──
     if (parsed.noAnimalFound) {
       const reason = parsed.rejectionReason || 'no_animal';
       const messages = {
         no_animal:       'No animal found. Point at a real animal and try again.',
         unclear_image:   'Image too unclear. Move closer or improve lighting and try again.',
-        not_real_animal: 'XcapeSnap only identifies real living animals, not drawings or toys.'
+        not_real_animal: 'XcapeSnap only identifies real living animals, not drawings, toys, or fictional creatures.'
       };
       return res.status(422).json({
         error: messages[reason] || messages['no_animal'],
         rejectionReason: reason
+      });
+    }
+
+    // ── TRIPWIRE 2: isVerifiedSpecies cross-check ──
+    // Only hard-reject if Gemini explicitly flagged false AND there's no scientific name.
+    // We do NOT reject on isVerifiedSpecies !== true because uncertain lighting/angle
+    // can make Gemini hedge on a real animal — that would punish legitimate users.
+    if (parsed.isVerifiedSpecies === false && !parsed.scientificName) {
+      return res.status(422).json({
+        error: 'XcapeSnap only identifies real living animals, not drawings, toys, or fictional creatures.',
+        rejectionReason: 'not_real_animal'
+      });
+    }
+
+    // ── TRIPWIRE 3: scientificName must follow real Latin binomial format ──
+    if (!isValidScientificName(parsed.scientificName)) {
+      console.warn('Rejected: invalid scientificName format:', parsed.scientificName);
+      return res.status(422).json({
+        error: 'Could not verify this as a known species. Try a clearer image.',
+        rejectionReason: 'not_real_animal'
       });
     }
 
