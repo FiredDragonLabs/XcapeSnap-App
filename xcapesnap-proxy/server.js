@@ -30,6 +30,19 @@ app.get('/', (req, res) => {
   res.json({ status: 'XcapeSnap proxy running' });
 });
 
+// ── TEST MODELS ENDPOINT ──
+app.get('/test-models', async (req, res) => {
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_KEY}`
+    );
+    const data = await response.json();
+    res.json(data);
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── PROXY ENDPOINT ──
 app.post('/identify', async (req, res) => {
   const { imageData, mimeType } = req.body;
@@ -62,7 +75,7 @@ Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
   "description":"",
   "habitat":"",
   "encounterDo":["","",""],
-  "encounterDont":["","",""],
+  "encounterDont":["","","",""],
   "funFact":"",
   "tags":["",""],
   "noAnimalFound":false,
@@ -72,7 +85,7 @@ dangerLevel 1=harmless, 2=caution, 3=moderate, 4=dangerous, 5=deadly.`;
 
   try {
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
