@@ -12,6 +12,7 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const ALLOWED_ORIGINS = [
   'https://www.xcapeworld.com',
   'https://xcapeworld.com',
+  'https://fireddragonlabs.github.io'
 ];
 
 app.use(cors({
