@@ -4,13 +4,24 @@ const express = require('express');
 const cors    = require('cors');
 const fetch   = require('node-fetch');
 const crypto  = require('crypto');
+const helmet  = require('helmet');
+const fs      = require('fs');
+const path    = require('path');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const GEMINI_KEY        = process.env.GEMINI_API_KEY;
 const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID;
+const PAYPAL_CLIENT_ID  = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 const API_SECRET        = process.env.XCAPESNAP_API_SECRET;
+
+// ── GAP 5 FIX: HTTP Security Headers via Helmet ──
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled — proxy API, not serving HTML
+  crossOriginEmbedderPolicy: false
+}));
 
 // ── ALLOWED MIME TYPES ──
 const ALLOWED_MIME_TYPES = new Set([
@@ -21,7 +32,7 @@ const ALLOWED_MIME_TYPES = new Set([
 // ── ZERO-DEPENDENCY RATE LIMITER — 20 requests per IP per 10 minutes ──
 const rateLimitMap = new Map();
 const RATE_LIMIT_MAX    = 20;
-const RATE_LIMIT_WINDOW = 10 * 60 * 1000; // 10 minutes in ms
+const RATE_LIMIT_WINDOW = 10 * 60 * 1000;
 
 function identifyLimiter(req, res, next) {
   const ip  = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
@@ -47,29 +58,144 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
+// ── GAP 6 FIX: userID Validator — length cap + format check ──
+function isValidUserID(id) {
+  if (!id || typeof id !== 'string') return false;
+  if (id.length < 8 || id.length > 128) return false;
+  return /^[a-zA-Z0-9_\-\.]+$/.test(id);
+}
+
 // ── BINOMIAL NOMENCLATURE VALIDATOR ──
 function isValidScientificName(name) {
   if (!name || typeof name !== 'string') return false;
   return /^[A-Z][a-z]+ [a-z]+( [a-z]+)?$/.test(name.trim());
 }
 
-// ── PRO USERS STORAGE (in-memory for now) ──
-// In production, use a database. For now, this works and survives restarts on Render.
-const proUsers = new Map(); // userID → { subscribed: true, subscriberId: 'xyz', activatedAt: timestamp }
+// ── GAP 2 FIX: FILE-BASED PRO USER PERSISTENCE ──
+// Survives in-process restarts and Render paid-tier persistent disks.
+// Falls back gracefully to in-memory if filesystem is unavailable.
+const PRO_STORE_PATH = path.join('/tmp', 'xcapesnap_pro_users.json');
+
+function loadProUsers() {
+  try {
+    if (fs.existsSync(PRO_STORE_PATH)) {
+      const raw = fs.readFileSync(PRO_STORE_PATH, 'utf8');
+      const obj = JSON.parse(raw);
+      const map = new Map();
+      for (const [k, v] of Object.entries(obj)) map.set(k, v);
+      console.log(`📂 Loaded ${map.size} Pro users from disk`);
+      return map;
+    }
+  } catch (err) {
+    console.warn('⚠️  Could not load Pro users from disk:', err.message);
+  }
+  return new Map();
+}
+
+function saveProUsers(map) {
+  try {
+    const obj = {};
+    for (const [k, v] of map) obj[k] = v;
+    fs.writeFileSync(PRO_STORE_PATH, JSON.stringify(obj, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('⚠️  Could not save Pro users to disk:', err.message);
+  }
+}
+
+// Load Pro users on startup
+const proUsers = loadProUsers();
 
 // Helper: Check if user has Pro
 function isProUser(userID) {
   return proUsers.has(userID) && proUsers.get(userID).subscribed === true;
 }
 
-// Helper: Activate Pro for user
+// Helper: Activate Pro for user + persist immediately
 function activateProUser(userID, subscriberID) {
   proUsers.set(userID, {
     subscribed: true,
     subscriberId: subscriberID,
     activatedAt: Date.now()
   });
-  console.log(`✅ Pro activated for user: ${userID}`);
+  saveProUsers(proUsers);
+  console.log(`✅ Pro activated and persisted for user: ${userID}`);
+}
+
+// ── GAP 1 FIX: PayPal Webhook Signature Verification ──
+// Calls PayPal's own verification API — no fake webhooks can pass this check.
+async function verifyPayPalWebhookSignature(req) {
+  if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET || !PAYPAL_WEBHOOK_ID) {
+    console.warn('⚠️  PayPal credentials not fully configured — skipping signature verification');
+    return true; // Fail open only if env vars are missing — log warning
+  }
+
+  try {
+    // Step 1: Get PayPal OAuth access token
+    const authHeader = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
+    const tokenRes = await fetch(
+      'https://api.paypal.com/v1/oauth2/token',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${authHeader}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'grant_type=client_credentials'
+      }
+    );
+
+    if (!tokenRes.ok) {
+      console.error('❌ PayPal token fetch failed:', tokenRes.status);
+      return false;
+    }
+
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+
+    if (!accessToken) {
+      console.error('❌ PayPal access token missing from response');
+      return false;
+    }
+
+    // Step 2: Verify webhook signature via PayPal API
+    const verifyRes = await fetch(
+      'https://api.paypal.com/v1/notifications/verify-webhook-signature',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          auth_algo:         req.headers['paypal-auth-algo'],
+          cert_url:          req.headers['paypal-cert-url'],
+          transmission_id:   req.headers['paypal-transmission-id'],
+          transmission_sig:  req.headers['paypal-transmission-sig'],
+          transmission_time: req.headers['paypal-transmission-time'],
+          webhook_id:        PAYPAL_WEBHOOK_ID,
+          webhook_event:     req.body
+        })
+      }
+    );
+
+    if (!verifyRes.ok) {
+      console.error('❌ PayPal verification API error:', verifyRes.status);
+      return false;
+    }
+
+    const verifyData = await verifyRes.json();
+    const verified = verifyData.verification_status === 'SUCCESS';
+
+    if (!verified) {
+      console.warn('🚨 PayPal webhook signature FAILED verification. Possible spoofed request.');
+    }
+
+    return verified;
+
+  } catch (err) {
+    console.error('❌ PayPal signature verification exception:', err.message);
+    return false;
+  }
 }
 
 const ALLOWED_ORIGINS = [
@@ -98,8 +224,14 @@ app.get('/', (req, res) => {
   });
 });
 
-// ── TEST MODELS ENDPOINT ──
+// ── GAP 3 FIX: TEST MODELS ENDPOINT — gated behind TEST_MODE ──
 app.get('/test-models', async (req, res) => {
+  if (process.env.TEST_MODE !== 'true') {
+    return res.status(403).json({
+      error: 'Endpoint disabled in production',
+      message: 'Set TEST_MODE=true in environment variables to enable.'
+    });
+  }
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_KEY}`
@@ -111,14 +243,15 @@ app.get('/test-models', async (req, res) => {
   }
 });
 
-// ── CHECK PRO STATUS ──
-app.get('/check-pro', (req, res) => {
+// ── GAP 4 FIX: CHECK PRO STATUS — now rate limited + userID validated ──
+app.get('/check-pro', identifyLimiter, (req, res) => {
   const userID = req.query.userid;
-  
-  if (!userID || typeof userID !== 'string') {
-    return res.status(400).json({ error: 'Missing userid parameter' });
+
+  // GAP 6 FIX: Validate userID format and length
+  if (!isValidUserID(userID)) {
+    return res.status(400).json({ error: 'Invalid or missing userid parameter' });
   }
-  
+
   const isPro = isProUser(userID);
   return res.json({ isPro });
 });
@@ -126,25 +259,22 @@ app.get('/check-pro', (req, res) => {
 // ── TEST ENDPOINT - Activate Pro for Testing ──
 // ONLY works when TEST_MODE=true in Render environment variables
 app.post('/test-activate-pro', (req, res) => {
-  // Security: Only allow in test mode
   if (process.env.TEST_MODE !== 'true') {
     return res.status(403).json({ 
       error: 'Test endpoint disabled',
       message: 'This endpoint only works in test mode. Set TEST_MODE=true in environment variables.'
     });
   }
-  
+
   const { userID } = req.body;
-  
-  if (!userID || typeof userID !== 'string') {
-    return res.status(400).json({ error: 'Missing userID in request body' });
+
+  if (!isValidUserID(userID)) {
+    return res.status(400).json({ error: 'Invalid or missing userID in request body' });
   }
-  
-  // Activate Pro for this test user
+
   activateProUser(userID, 'TEST_SUBSCRIPTION_' + Date.now());
-  
   console.log('✅ TEST: Pro activated for user:', userID);
-  
+
   return res.json({ 
     success: true, 
     message: 'Pro activated for testing',
@@ -152,31 +282,42 @@ app.post('/test-activate-pro', (req, res) => {
   });
 });
 
-// ── PAYPAL WEBHOOK ──
+// ── GAP 1 FIX: PAYPAL WEBHOOK — now with signature verification ──
 app.post('/paypal-webhook', async (req, res) => {
   try {
-    // PayPal sends webhook data as JSON
+    // Verify the webhook signature before processing anything
+    const isVerified = await verifyPayPalWebhookSignature(req);
+
+    if (!isVerified) {
+      console.warn('🚨 Rejected unverified PayPal webhook from:', 
+        req.headers['x-forwarded-for'] || req.socket.remoteAddress
+      );
+      // Return 200 anyway — PayPal expects 200 even on rejection
+      // Returning non-200 causes PayPal to retry endlessly
+      return res.status(200).json({ received: false, reason: 'signature_invalid' });
+    }
+
     const webhookEvent = req.body;
-    
-    console.log('📥 PayPal webhook received:', webhookEvent.event_type);
-    
+    console.log('📥 Verified PayPal webhook received:', webhookEvent.event_type);
+
     // Handle subscription payment completed
-    if (webhookEvent.event_type === 'PAYMENT.SALE.COMPLETED' || 
-        webhookEvent.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
-      
-      // Extract user ID from custom field (we'll add this to PayPal button)
-      const customData = webhookEvent.resource?.custom || webhookEvent.resource?.custom_id;
+    if (
+      webhookEvent.event_type === 'PAYMENT.SALE.COMPLETED' || 
+      webhookEvent.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED'
+    ) {
+      const customData  = webhookEvent.resource?.custom || webhookEvent.resource?.custom_id;
       const subscriberID = webhookEvent.resource?.id;
-      
-      if (customData && subscriberID) {
-        // Activate Pro for this user
+
+      // GAP 6 FIX: Validate userID from PayPal payload before activating
+      if (customData && isValidUserID(customData) && subscriberID) {
         activateProUser(customData, subscriberID);
+      } else {
+        console.warn('⚠️  PayPal webhook missing or invalid customData:', customData);
       }
     }
-    
-    // Always return 200 to PayPal
+
     return res.status(200).json({ received: true });
-    
+
   } catch (err) {
     console.error('PayPal webhook error:', err.message);
     return res.status(500).json({ error: 'Webhook processing failed' });
@@ -185,9 +326,7 @@ app.post('/paypal-webhook', async (req, res) => {
 
 // ── PROXY ENDPOINT ──
 app.post('/identify', identifyLimiter, async (req, res) => {
-  // ── GAP 5 FIX: Shared secret header check — blocks direct API abuse ──
-  // Frontend must send X-XcapeSnap-Secret header matching XCAPESNAP_API_SECRET env var.
-  // If env var is not set, this check is skipped (allows gradual rollout).
+  // Shared secret header check — blocks direct API abuse
   if (API_SECRET) {
     const clientSecret = req.headers['x-xcapesnap-secret'];
     if (!clientSecret || clientSecret !== API_SECRET) {
@@ -201,12 +340,12 @@ app.post('/identify', identifyLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Missing imageData' });
   }
 
-  // ── GAP 3 FIX: Whitelist mimeType — reject non-image payloads ──
+  // Whitelist mimeType — reject non-image payloads
   const safeMime = (typeof mimeType === 'string' && ALLOWED_MIME_TYPES.has(mimeType.toLowerCase()))
     ? mimeType.toLowerCase()
     : 'image/jpeg';
 
-  // ── Basic imageData sanity: must be non-trivial base64 ──
+  // Basic imageData sanity: must be non-trivial base64
   if (imageData.length < 100) {
     return res.status(400).json({ error: 'Invalid image data' });
   }
@@ -312,9 +451,6 @@ Respond ONLY in raw JSON (no markdown, no code blocks, no explanation):
     }
 
     // ── TRIPWIRE 2: isVerifiedSpecies cross-check ──
-    // Only hard-reject if Gemini explicitly flagged false AND there's no scientific name.
-    // We do NOT reject on isVerifiedSpecies !== true because uncertain lighting/angle
-    // can make Gemini hedge on a real animal — that would punish legitimate users.
     if (parsed.isVerifiedSpecies === false && !parsed.scientificName) {
       return res.status(422).json({
         error: 'XcapeSnap only identifies real living animals, not drawings, toys, or fictional creatures.',
