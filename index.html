@@ -79,62 +79,38 @@
     }
   }
 
-  /* ============ LOGIN SCREEN ============ */
-  #wildsnap-app .login-screen {
+  /* ============ GOOGLE SIGN-IN OVERLAY ============ */
+  #ws-googleOverlay {
+    display: none;
     position: absolute;
     inset: 0;
-    display: flex;
-    flex-direction: column;
+    background: rgba(0,0,0,0.88);
+    z-index: 200;
     align-items: center;
     justify-content: center;
-    background: var(--ws-dark);
-    z-index: 100;
+    flex-direction: column;
     padding: 32px 24px;
     box-sizing: border-box;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.35s ease;
   }
-  #wildsnap-app .login-screen.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  #wildsnap-app .login-logo {
+  #ws-googleOverlay.show { display: flex; }
+  #wildsnap-app .gso-icon { font-size: 48px; margin-bottom: 16px; }
+  #wildsnap-app .gso-title {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 42px;
-    letter-spacing: 4px;
-    color: var(--ws-yellow);
-    margin-bottom: 6px;
-  }
-  #wildsnap-app .login-logo span { color: var(--ws-text); }
-  #wildsnap-app .login-tagline {
-    font-size: 13px;
-    color: var(--ws-dim);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 48px;
-    text-align: center;
-  }
-  #wildsnap-app .login-icon {
-    font-size: 64px;
-    margin-bottom: 28px;
-  }
-  #wildsnap-app .login-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 26px;
+    font-size: 24px;
     letter-spacing: 3px;
     color: var(--ws-text);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     text-align: center;
   }
-  #wildsnap-app .login-sub {
+  #wildsnap-app .gso-sub {
     font-size: 13px;
     color: var(--ws-dim);
     text-align: center;
     line-height: 1.6;
-    margin-bottom: 40px;
+    margin-bottom: 32px;
     max-width: 280px;
   }
+  #wildsnap-app .gso-sub strong { color: var(--ws-yellow); }
   #wildsnap-app .google-signin-btn {
     display: flex;
     align-items: center;
@@ -153,16 +129,26 @@
     justify-content: center;
     box-shadow: 0 2px 20px rgba(255,255,255,0.12);
     transition: opacity 0.2s;
+    margin-bottom: 14px;
   }
   #wildsnap-app .google-signin-btn:active { opacity: 0.82; }
   #wildsnap-app .google-signin-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
-  #wildsnap-app .login-disclaimer {
+  #wildsnap-app .gso-cancel {
+    background: none;
+    border: none;
+    color: var(--ws-dim);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Exo 2', sans-serif;
+    padding: 8px;
+  }
+  #wildsnap-app .gso-disclaimer {
     font-size: 11px;
-    color: #555;
+    color: #444;
     text-align: center;
-    margin-top: 20px;
+    margin-top: 16px;
     line-height: 1.5;
-    max-width: 280px;
+    max-width: 260px;
   }
 
   /* ============ MENU USER INFO ============ */
@@ -170,55 +156,38 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 16px 0;
+    padding: 14px 0;
     border-bottom: 1px solid #222;
     margin-bottom: 8px;
   }
   #wildsnap-app .menu-user-avatar {
-    width: 40px;
-    height: 40px;
+    width: 38px; height: 38px;
     border-radius: 50%;
     border: 2px solid var(--ws-yellow);
-    object-fit: cover;
+    object-fit: cover; flex-shrink: 0;
   }
   #wildsnap-app .menu-user-avatar-placeholder {
-    width: 40px;
-    height: 40px;
+    width: 38px; height: 38px;
     border-radius: 50%;
-    border: 2px solid var(--ws-yellow);
-    background: #222;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
+    border: 2px solid #333;
+    background: #1a1a1a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
   }
   #wildsnap-app .menu-user-details { flex: 1; min-width: 0; }
   #wildsnap-app .menu-user-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ws-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 13px; font-weight: 600; color: var(--ws-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   #wildsnap-app .menu-user-email {
-    font-size: 11px;
-    color: var(--ws-dim);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 11px; color: var(--ws-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   #wildsnap-app .menu-signout-btn {
-    background: none;
-    border: 1px solid #333;
-    color: var(--ws-dim);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 11px;
-    cursor: pointer;
-    font-family: 'Exo 2', sans-serif;
-    transition: color 0.2s, border-color 0.2s;
+    background: none; border: 1px solid #333; color: var(--ws-dim);
+    border-radius: 8px; padding: 5px 10px; font-size: 11px;
+    cursor: pointer; font-family: 'Exo 2', sans-serif;
+    transition: color 0.2s, border-color 0.2s; white-space: nowrap;
   }
   #wildsnap-app .menu-signout-btn:hover { color: #F44336; border-color: #F44336; }
 
@@ -961,14 +930,12 @@
   <canvas id="ws-canvas"></canvas>
   <input accept="image/*" id="ws-fileInput" type="file" />
 
-  <!--============ LOGIN SCREEN ============-->
-  <div class="login-screen" id="ws-loginScreen">
-    <div class="login-logo">Xcape<span>Snap</span></div>
-    <div class="login-tagline">AI Wildlife Identification</div>
-    <div class="login-icon">🦁</div>
-    <div class="login-title">Sign In to Continue</div>
-    <div class="login-sub">Your Pro subscription follows you across every device and browser.</div>
-    <button class="google-signin-btn" onclick="wsGoogleSignIn()">
+  <!--============ GOOGLE SIGN-IN OVERLAY ============-->
+  <div id="ws-googleOverlay">
+    <div class="gso-icon">🔐</div>
+    <div class="gso-title">One Quick Step</div>
+    <div class="gso-sub">Sign in with Google to lock in your <strong>Pro subscription</strong> — so it follows you on every device, forever.</div>
+    <button class="google-signin-btn" onclick="wsGoogleSignInForPro()">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -977,7 +944,8 @@
       </svg>
       Sign in with Google
     </button>
-    <div class="login-disclaimer">Your Google account is used only to identify you securely. We never post or access your data.</div>
+    <button class="gso-cancel" onclick="wsCloseGoogleOverlay()">Cancel</button>
+    <div class="gso-disclaimer">Your Google account is only used to keep your subscription active. We never post or access your data.</div>
   </div>
 
   <!--============ CAMERA SCREEN ============-->
@@ -1069,11 +1037,10 @@
     <div class="menu-panel" onclick="event.stopPropagation()">
       <div class="menu-close" onclick="document.getElementById('ws-menuOverlay').classList.remove('open')">✕</div>
       <div class="menu-logo">Xcape<span>Snap</span></div>
-      <div class="menu-user-info" id="ws-menuUserInfo">
-        <div class="menu-user-avatar-placeholder" id="ws-menuAvatarPlaceholder">👤</div>
-        <img class="menu-user-avatar" id="ws-menuAvatar" src="" style="display:none" />
+      <div class="menu-user-info" id="ws-menuUserInfo" style="display:none">
+        <img class="menu-user-avatar" id="ws-menuAvatar" src="" />
         <div class="menu-user-details">
-          <div class="menu-user-name" id="ws-menuUserName">Not signed in</div>
+          <div class="menu-user-name" id="ws-menuUserName"></div>
           <div class="menu-user-email" id="ws-menuUserEmail"></div>
         </div>
         <button class="menu-signout-btn" onclick="wsSignOut()">Sign out</button>
@@ -1188,92 +1155,37 @@
   // Leave as empty string ('') until you configure the env var on Render.
   const WS_API_SECRET = '';
 
-  // ── GOOGLE SIGN-IN ──
-  const WS_GOOGLE_CLIENT_ID = '208926044692-4k9713f9c0mfqcr63ql26k38jd79vjcp.apps.googleusercontent.com';
-
-  function wsGetGoogleUser() {
-    try { return JSON.parse(localStorage.getItem('xs_google_user') || 'null'); }
-    catch(e) { return null; }
-  }
-
-  function wsSetGoogleUser(user) {
-    localStorage.setItem('xs_google_user', JSON.stringify(user));
-    localStorage.setItem('xs_userid', user.sub);
-    wsUpdateMenuUser(user);
-  }
-
-  function wsUpdateMenuUser(user) {
-    if (!user) return;
-    const nameEl = document.getElementById('ws-menuUserName');
-    const emailEl = document.getElementById('ws-menuUserEmail');
-    const avatarEl = document.getElementById('ws-menuAvatar');
-    const placeholderEl = document.getElementById('ws-menuAvatarPlaceholder');
-    if (nameEl) nameEl.textContent = user.name || 'XcapeSnap User';
-    if (emailEl) emailEl.textContent = user.email || '';
-    if (user.picture && avatarEl && placeholderEl) {
-      avatarEl.src = user.picture;
-      avatarEl.style.display = 'block';
-      placeholderEl.style.display = 'none';
-    }
-  }
-
-  window.wsGoogleSignIn = function() {
-    google.accounts.id.initialize({
-      client_id: WS_GOOGLE_CLIENT_ID,
-      callback: function(response) {
-        // Decode the JWT credential
-        const parts = response.credential.split('.');
-        const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-        const user = {
-          sub: payload.sub,
-          name: payload.name,
-          email: payload.email,
-          picture: payload.picture
-        };
-        wsSetGoogleUser(user);
-        console.log('✅ Google Sign-In successful:', user.email);
-        wsShowMainApp();
-        wsCheckProStatus();
-      },
-      ux_mode: 'popup'
-    });
-    google.accounts.id.prompt(function(notification) {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // Fallback to renderButton approach if prompt is blocked
-        google.accounts.id.renderButton(
-          document.querySelector('.google-signin-btn'),
-          { theme: 'outline', size: 'large', width: 300 }
-        );
-      }
-    });
-  };
-
-  window.wsSignOut = function() {
-    google.accounts.id.revoke(wsGetGoogleUser()?.email || '', () => {});
-    localStorage.removeItem('xs_google_user');
-    localStorage.removeItem('xs_userid');
-    localStorage.removeItem('xs_pro');
-    document.getElementById('ws-menuOverlay').classList.remove('open');
-    wsShowLoginScreen();
-    console.log('👋 Signed out');
-  };
-
-  function wsShowLoginScreen() {
-    document.getElementById('ws-loginScreen').classList.add('active');
-    document.getElementById('ws-camScreen').classList.remove('active');
-    document.getElementById('ws-resultsScreen').classList.remove('active');
-  }
-
-  function wsShowMainApp() {
-    document.getElementById('ws-loginScreen').classList.remove('active');
-    document.getElementById('ws-camScreen').classList.add('active');
-  }
-
-  // ── USER ID — now Google-based ──
+  // ── USER ID GENERATION (like Band-8) ──
   function wsGenerateUserID() {
-    const user = wsGetGoogleUser();
-    if (user) return user.sub;
-    return localStorage.getItem('xs_userid') || 'anonymous';
+    // Check if we already have a user ID
+    let userID = localStorage.getItem('xs_userid');
+    if (userID) return userID;
+    
+    // Generate fingerprint from browser info
+    const nav = navigator;
+    const screen = window.screen;
+    const fingerprint = [
+      nav.userAgent,
+      nav.language,
+      screen.colorDepth,
+      screen.width + 'x' + screen.height,
+      new Date().getTimezoneOffset(),
+      !!window.sessionStorage,
+      !!window.localStorage
+    ].join('|');
+    
+    // Simple hash function
+    let hash = 0;
+    for (let i = 0; i < fingerprint.length; i++) {
+      const char = fingerprint.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    
+    // Create user ID from hash + random component
+    userID = 'XS' + Math.abs(hash).toString(36) + Date.now().toString(36);
+    localStorage.setItem('xs_userid', userID);
+    return userID;
   }
 
   // ── CHECK PRO STATUS FROM BACKEND ──
@@ -1409,16 +1321,13 @@
     if (wsStream) { wsStream.getTracks().forEach(t => t.stop()); wsStream = null; }
   }
 
-  // ── APP INIT — check Google session ──
+  // Init
   wsLoadState();
-  const _existingUser = wsGetGoogleUser();
-  if (_existingUser) {
-    wsUpdateMenuUser(_existingUser);
-    wsCheckProStatus();
-    wsStartCam();
-  } else {
-    wsShowLoginScreen();
-  }
+  // Restore Google session if user previously signed in for Pro
+  const _existingGoogleUser = wsGetGoogleUser();
+  if (_existingGoogleUser) wsUpdateMenuUser(_existingGoogleUser);
+  wsCheckProStatus();
+  wsStartCam();
 
   // ── NIGHT MODE ──
   let wsNightMode = false;
@@ -1620,12 +1529,89 @@
     document.getElementById('ws-upgradeModal').classList.remove('show');
   };
 
-  // ── OPEN PAYPAL WITH USER ID ──
-  window.wsOpenPayPal = function() {
-    const userID = wsGenerateUserID();
+  // ── GOOGLE SIGN-IN FOR PRO ──
+  const WS_GOOGLE_CLIENT_ID = '208926044692-4k9713f9c0mfqcr63ql26k38jd79vjcp.apps.googleusercontent.com';
+
+  function wsGetGoogleUser() {
+    try { return JSON.parse(localStorage.getItem('xs_google_user') || 'null'); }
+    catch(e) { return null; }
+  }
+
+  function wsSetGoogleUser(user) {
+    localStorage.setItem('xs_google_user', JSON.stringify(user));
+    localStorage.setItem('xs_userid', user.sub);
+    wsUpdateMenuUser(user);
+  }
+
+  function wsUpdateMenuUser(user) {
+    const infoEl = document.getElementById('ws-menuUserInfo');
+    const nameEl = document.getElementById('ws-menuUserName');
+    const emailEl = document.getElementById('ws-menuUserEmail');
+    const avatarEl = document.getElementById('ws-menuAvatar');
+    if (!user) { if (infoEl) infoEl.style.display = 'none'; return; }
+    if (infoEl) infoEl.style.display = 'flex';
+    if (nameEl) nameEl.textContent = user.name || 'Pro Subscriber';
+    if (emailEl) emailEl.textContent = user.email || '';
+    if (avatarEl && user.picture) avatarEl.src = user.picture;
+  }
+
+  window.wsGoogleSignInForPro = function() {
+    google.accounts.id.initialize({
+      client_id: WS_GOOGLE_CLIENT_ID,
+      callback: function(response) {
+        const parts = response.credential.split('.');
+        const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+        const user = { sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture };
+        wsSetGoogleUser(user);
+        console.log('✅ Google Sign-In successful:', user.email);
+        wsCloseGoogleOverlay();
+        wsLaunchPayPal(user.sub);
+      },
+      ux_mode: 'popup'
+    });
+    google.accounts.id.prompt(function(notification) {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        google.accounts.id.renderButton(
+          document.querySelector('.google-signin-btn'),
+          { theme: 'outline', size: 'large', width: 300 }
+        );
+      }
+    });
+  };
+
+  window.wsCloseGoogleOverlay = function() {
+    document.getElementById('ws-googleOverlay').classList.remove('show');
+  };
+
+  window.wsSignOut = function() {
+    const user = wsGetGoogleUser();
+    if (user) google.accounts.id.revoke(user.email, () => {});
+    localStorage.removeItem('xs_google_user');
+    // Keep xs_userid as fingerprint fallback for free usage
+    localStorage.removeItem('xs_pro');
+    wsUpdateMenuUser(null);
+    document.getElementById('ws-menuOverlay').classList.remove('open');
+    wsUpdateCounterUI();
+    console.log('👋 Signed out of Pro');
+  };
+
+  function wsLaunchPayPal(userID) {
     const paypalURL = `https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=N6Z6V5GCNPCZ8&custom=${encodeURIComponent(userID)}`;
     window.open(paypalURL, '_blank');
-    console.log('📤 Opening PayPal with user ID:', userID);
+    console.log('📤 Opening PayPal with Google ID:', userID);
+  }
+
+  // ── OPEN PAYPAL WITH USER ID ──
+  window.wsOpenPayPal = function() {
+    const existingUser = wsGetGoogleUser();
+    if (existingUser) {
+      // Already signed in — go straight to PayPal
+      wsLaunchPayPal(existingUser.sub);
+    } else {
+      // Show Google Sign-In overlay first
+      document.getElementById('ws-upgradeModal').classList.remove('show');
+      document.getElementById('ws-googleOverlay').classList.add('show');
+    }
   };
 
   // ── SAVE PDF ──
